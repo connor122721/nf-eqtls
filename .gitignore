@@ -1,0 +1,14 @@
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore Nextflow directories
+.nextflow/
+.nextflow.log*
+
+# Ignore output and work directories
+output_test/
+output/
+work/
+
+# Ignore specific scripts directory checkpoints
+scripts/.ipynb_checkpoints
