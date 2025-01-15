@@ -25,11 +25,10 @@ process VCF_to_GDS {
         module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Run the R script
-        Rscript /standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/scripts/vcf2gds.R \
-        ${input_vcf_ch} \
-        ${params.gds_filename} \
-        ${params.threads}
-        
+        Rscript ${params.scripts_dir}/vcf2gds.R \
+            ${input_vcf_ch} \
+            ${params.gds_filename} \
+            ${params.threads}
         """
 }
 
@@ -42,12 +41,13 @@ process SNP_PCA {
     // Define the input
     input:
         path(gds_file)
+        path(related_individuals)
 
     // Define the output
     output:
         path("${params.pca_rds}")
         path("${params.pca_plot}")
-        path("${params.tensorqtl_pca}")
+        path("${params.tensorqtl_pca}"), emit: tensorqtl_pca
 
     // Define the script
     script:
@@ -55,9 +55,10 @@ process SNP_PCA {
         module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Execute the R script
-        Rscript /standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/scripts/topchef_dna_pca.R \
+        Rscript ${params.scripts_dir}/topchef_dna_pca.R \
             ${gds_file} \
             ${params.metadata} \
+            ${related_individuals} \
             ${params.pca_rds} \
             ${params.pca_plot} \
             ${params.tensorqtl_pca}

@@ -14,15 +14,16 @@ library(parallel)
 args <- commandArgs(trailingOnly = TRUE)
 
 # Check for correct number of arguments
-if(length(args) != 5){
-  stop("Usage: perform_pca.R <input_gds> <metadata_file> <pca_rds> <pca_plot> <tensorqtl_pca>")
+if(length(args) != 6){
+  stop("Usage: perform_pca.R <input_gds> <metadata_file> <related_individuals> <pca_rds> <pca_plot> <tensorqtl_pca>")
 }
 
 input_gds <- args[1]
 metadata_file <- args[2]
-pca_rds <- args[3]
-pca_plot <- args[4]
-tensorqtl_pca <- args[5]
+related_individuals <- args[3]
+pca_rds <- args[4]
+pca_plot <- args[5]
+tensorqtl_pca <- args[6]
 
 # Register cores
 threads <- parallel::detectCores()
@@ -37,6 +38,8 @@ samps <- seqGetData(genofile, var.name = "sample.id")
 
 # Sample metadata
 fin <- data.table(fread(metadata_file))
+related <- data.table(fread(related_individuals, header = FALSE))
+fin <- fin[!SAMPLE_ID_NWD %in% related$V1]
 seqSetFilter(genofile, sample.id = fin$SAMPLE_ID_NWD)
 
 # SNPs metadata

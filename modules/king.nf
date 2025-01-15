@@ -8,7 +8,7 @@ process King {
         path(input_vcf)
 
     output:
-        path("king*")
+        path("*kin"), emit: king_out
   
     script:
         """
@@ -33,5 +33,27 @@ process King {
             --degree 5 \\
             --related \\
             --prefix king.${params.king_bed_out}
+        """
+}
+
+// Run R script for plotting kinship and identifying related individuals
+process PlotKinship {
+    shell = '/usr/bin/env bash'
+    publishDir "${params.out}/king", mode: 'copy'
+
+    input:
+        path(king_files)
+
+    output:
+        path("kinship.pdf")
+        path("relatedIndividuals.txt"), emit: related_individuals
+
+    script:
+        """
+        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+
+        Rscript /standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/scripts/plot_king.R \\
+            ${king_files} \\
+            ${params.metadata}
         """
 }
