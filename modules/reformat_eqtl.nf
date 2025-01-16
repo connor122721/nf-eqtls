@@ -18,14 +18,17 @@ process reformat_eqtl {
         path metadata
         path gene_gtf
         path related_individuals
-        path samples_file
+        path rna_outliers
+        path dna_outliers
         path norm_tmm
         path pca_tmm
+        path pca_snp
 
     output:
         path "topchef_cov_RNApc*.txt"
         path "filt_rnaseq_norm_topchef_unrelated.bed"
         path "topchef_samples*.txt"
+        path "rna_pca_elbow_best_k"
 
     script:
         """
@@ -36,7 +39,10 @@ process reformat_eqtl {
             --metadata ${metadata} \\
             --gene_gtf ${gene_gtf} \\
             --related_individuals ${related_individuals} \\
+            --rna_outliers ${rna_outliers} \\
+            --dna_outliers ${dna_outliers} \\
             --norm_tmm ${norm_tmm} \\
-            --pca_tmm ${pca_tmm}
+            --pca_tmm ${pca_tmm} \\
+            --pca_snp ${pca_snp} \\
         """
 }

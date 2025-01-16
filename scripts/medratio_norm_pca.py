@@ -3,9 +3,7 @@
 
 """
 By: Connor S. Murray
-Modified by: [Your Name/Date]
 
-This script:
   - Performs TMM + inverse normal transform + PCA on RNA-seq data
   - Plots the first 6 PCs + scree plot, colored by Affected_NF
   - Outputs up to the 30th PC in pca_data.tsv
@@ -16,7 +14,6 @@ This script:
   - Writes final outlier sample IDs to a text file
   - Saves final filtered log-transformed counts and PCA to disk.
 """
-
 # Load Libraries
 import argparse
 import sys
@@ -72,7 +69,6 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
     - Saves a PCA plot (pca_medrat_plot.pdf) and writes final log counts & PCA results.
     - Writes outlier IDs to output_outliers.
     """
-    
     # -----------------------------------------------------------
     # (1) Load Metadata
     # -----------------------------------------------------------
@@ -265,9 +261,12 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
     # Add 'Affected_NF' if available
     if "Affected_NF" in meta_full.columns:
         pca_df["Affected_NF"] = meta_full["Affected_NF"]
-
+    
     # Plot first 6 PCs
+    sns.set_style("whitegrid")
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+    fig.subplots_adjust(hspace=0.25, wspace=0.2)
+
     pairs = [(0,1), (1,2), (2,3), (3,4), (4,5)]
     for i, (pc_x, pc_y) in enumerate(pairs):
         ax = axes.flatten()[i]
@@ -275,20 +274,18 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
             x=pca_df.iloc[:, pc_x],
             y=pca_df.iloc[:, pc_y],
             hue=pca_df.get('Affected_NF', None),
-            palette='viridis', s=50, alpha=0.7, ax=ax,
+            alpha=0.7, s=50, ax=ax,
             legend=(i==0)
         )
         ax.set_xlabel(f"PC{pc_x+1}", weight="bold", size=14)
         ax.set_ylabel(f"PC{pc_y+1}", weight="bold", size=14)
-        ax.grid(False)
 
     # Scree plot in the 6th panel
     scree_ax = axes.flatten()[5]
     scree_ax.bar(range(1,31), pca.explained_variance_ratio_[:30]*100, color='skyblue')
-    scree_ax.set_xlabel('Principal Component', weight="bold", size=14)
-    scree_ax.set_ylabel('Explained Variance (%)', weight="bold", size=14)
+    scree_ax.set_xlabel('Principal Component', weight="bold", size=12)
+    scree_ax.set_ylabel('Explained Variance (%)', weight="bold", size=12)
     scree_ax.set_xticks(range(1,31,4))
-    scree_ax.grid(False)
     plt.tight_layout()
     plt.savefig("pca_medrat_plot.pdf", dpi=300)
     plt.close()
@@ -305,13 +302,13 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
     inv_cov_matrix = np.linalg.inv(cov_matrix)
 
     mal_dist = pc_data.apply(lambda row: mahalanobis(row, mean_vector, inv_cov_matrix), axis=1)
-    pvals = 1 - chi2.cdf(mal_dist, df=pc_data.shape[1] - 1)
-    p_adj = multipletests(pvals, method="bonferroni")[1]
+    pvals = 1 - chi2.cdf(mal_dist, df=pc_data.shape[1]-1)
+    p_adj = multipletests(pvals, method="fdr_bh")[1]
 
     pca_df["mahal"] = mal_dist
     pca_df["mahal_pval"] = pvals
     pca_df["mahal_padj"] = p_adj
-
+    
     # -----------------------------------------------------------
     # (9c) MAD-based outlier detection on first 10 PCs
     # -----------------------------------------------------------
@@ -336,7 +333,7 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
 
     # Mark samples with mean normalized deviation >= 7
     pca_df["mad_score"] = pc10["mad_score"]
-    pca_df["mad_outlier"] = pca_df["mad_score"] >= 7
+    pca_df["mad_outlier"] = pca_df["mad_score"] >= 3
 
     # Combine outliers from either criterion
     #   1) mad_outlier == True

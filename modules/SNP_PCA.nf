@@ -6,6 +6,7 @@ nextflow.enable.dsl=2
 //  Processes related to DNA PCA
 // ------------------------------
 
+// Process to convert VCF to GDS
 process VCF_to_GDS {
 
     // Publish the output to the specified directory
@@ -14,10 +15,10 @@ process VCF_to_GDS {
     
     // Define the input and output
     input:
-        path(input_vcf_ch)
+        path input_vcf_ch
 
     output:
-        path("*.gds")
+        path "*.gds"
 
     // Define a unique output name based on input file
     script:
@@ -32,6 +33,7 @@ process VCF_to_GDS {
         """
 }
 
+// Process to perform PCA on SNP data
 process SNP_PCA {
 
     // Publish the outputs to the specified PCA output directory
@@ -40,14 +42,15 @@ process SNP_PCA {
 
     // Define the input
     input:
-        path(gds_file)
-        path(related_individuals)
+        path gds_file
+        path related_individuals
 
     // Define the output
     output:
-        path("${params.pca_rds}")
-        path("${params.pca_plot}")
-        path("${params.tensorqtl_pca}"), emit: tensorqtl_pca
+        path "${params.pca_rds}"
+        path "${params.pca_plot}"
+        path "${params.tensorqtl_pca}", emit: tensorqtl_pca
+        path "${params.dna_outliers}", emit: dna_outliers
 
     // Define the script
     script:
@@ -55,12 +58,13 @@ process SNP_PCA {
         module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Execute the R script
-        Rscript ${params.scripts_dir}/topchef_dna_pca.R \
-            ${gds_file} \
-            ${params.metadata} \
-            ${related_individuals} \
-            ${params.pca_rds} \
-            ${params.pca_plot} \
-            ${params.tensorqtl_pca}
+        Rscript ${params.scripts_dir}/topchef_dna_pca.R \\
+            ${gds_file} \\
+            ${params.metadata} \\
+            ${related_individuals} \\
+            ${params.pca_rds} \\
+            ${params.pca_plot} \\
+            ${params.tensorqtl_pca} \\
+            ${params.dna_outliers}
         """
 }

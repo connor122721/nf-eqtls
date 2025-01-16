@@ -14,8 +14,8 @@ library(parallel)
 args <- commandArgs(trailingOnly = TRUE)
 
 # Check for correct number of arguments
-if(length(args) != 6){
-  stop("Usage: perform_pca.R <input_gds> <metadata_file> <related_individuals> <pca_rds> <pca_plot> <tensorqtl_pca>")
+if(length(args) != 7){
+  stop("Usage: perform_pca.R <input_gds> <metadata_file> <related_individuals> <pca_rds> <pca_plot> <tensorqtl_pca> <outliers_nam>")
 }
 
 input_gds <- args[1]
@@ -24,6 +24,7 @@ related_individuals <- args[3]
 pca_rds <- args[4]
 pca_plot <- args[5]
 tensorqtl_pca <- args[6]
+outlier_output <- args[7]
 
 # Register cores
 threads <- parallel::detectCores()
@@ -108,7 +109,7 @@ mal.dt <- data.table(
   pca %>% select(sample, Affected_NF), 
   mahal = mal, 
   pval = p,
-  padj = p.adjust(p, method = "bonferroni"))
+  padj = p.adjust(p, method = "BH"))
 
 outliers <- mal.dt[padj < 0.05]$sample
 
@@ -248,7 +249,7 @@ pc_fin <- (((pc12 | pc23 | pc34) / (pc45 | pc56 | scree)) +
             plot_layout(guides = 'collect'))
 
 # Save composite PCA plot
-ggsave(plot = pc_fin, filename = pca_plot, width = 22, height = 8)
+ggsave(plot = pc_fin, filename = pca_plot, width = 16, height = 8)
 
 # Output PCA for TensorQTL
 write.table(
@@ -256,5 +257,14 @@ write.table(
   file = tensorqtl_pca,
   quote = FALSE,
   row.names = TRUE,
+  col.names = FALSE,
+  sep = '\t')
+
+# Output outlier individuals
+write.table(
+  outliers,
+  file = outlier_output,
+  quote = FALSE,
+  row.names = FALSE,
   col.names = FALSE,
   sep = '\t')

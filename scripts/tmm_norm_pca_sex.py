@@ -156,7 +156,7 @@ def plot_sex_assessment(ccm, meta, xist_gene, rps4y1_gene, output_plot_pdf, xist
         rps4y1_gene: rps4y1_cpm,
         "Inferred_Sex": meta["Inferred_Sex"]})
 
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(8, 8))
     sns.scatterplot(
         data=plot_df,
         x=xist_gene,

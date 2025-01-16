@@ -15,28 +15,29 @@ parser <- ArgumentParser()
 parser$add_argument("--metadata", required=TRUE, help="Path to metadata file")
 parser$add_argument("--gene_gtf", required=TRUE, help="Path to GTF file")
 parser$add_argument("--related_individuals", required=TRUE, help="Path to related individuals file")
+parser$add_argument("--rna_outliers", required=TRUE, help="Path to RNA outliers file")
+parser$add_argument("--dna_outliers", required=TRUE, help="Path to DNA outliers file")
 parser$add_argument("--norm_tmm", required=TRUE, help="Path to normalized TMM RNAseq data")
 parser$add_argument("--pca_tmm", required=TRUE, help="Path to PCA TMM data")
-
+parser$add_argument("--pca_snp", required=TRUE, help="Path to SNP PCA data")
 args <- parser$parse_args()
 
-setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/")
-
-metadata="metadata/metadata_10_17_2024_CSM.txt"
-gene_gtf="genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.TSS.bed"
-related_individuals="nextflow_dna/output_test_new/king/relatedIndividuals.txt"
-norm_tmm="nextflow_dna/output_test_new/rna/norm_tmm.tsv"
-pca_tmm="nextflow_dna/output_test_new/rna/pca_tmm.tsv"
-pca_snp="nextflow_dna/output_test_new/pca/filt_dna_pc1_5_topchef.txt"
+#setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/")
+#metadata="metadata/metadata_10_17_2024_CSM.txt"
+#gene_gtf="genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.TSS.bed"
+#related_individuals="nextflow_dna/output_test_new/king/relatedIndividuals.txt"
+#norm_tmm="nextflow_dna/output_test_new/rna/norm_tmm.tsv"
+#pca_tmm="nextflow_dna/output_test_new/rna/pca_tmm.tsv"
+#pca_snp="nextflow_dna/output_test_new/pca/filt_dna_pc1_5_topchef.txt"
 
 # Metadata
-meta <- data.table(fread(metadata, header = T))
+meta <- data.table(fread(args$metadata, header = T))
 
 # Read in normalized TMM RNAseq data
-norm_tmm <- data.table(fread(norm_tmm, header = T))
+norm_tmm <- data.table(fread(args$norm_tmm, header = T))
 
 # Read in PCA TMM data
-pca_tmm <- data.table(fread(pca_tmm, header = T))
+pca_tmm <- data.table(fread(args$pca_tmm, header = T))
 
 # Make PCA friendly metadata
 meta.pca <- data.table(meta[!SAMPLE_ID_TOR=="TOR238072"] %>% 
@@ -56,12 +57,14 @@ fin <- na.omit(fin %>%
               select("SAMPLE_ID_TOR", "SAMPLE_ID_NWD", "Gender")))
 
 # Read in GTF
-gtf_tss <- data.table(fread(gene_gtf))
+gtf_tss <- data.table(fread(args$gene_gtf))
 gtf_tss[, gene_edit := sub("\\..*", "", gene_id)]
 norm_tmm[, gene_edit := sub("\\..*", "", Name)]
 
-# Close relatives in dataset (as inferred by king analysis)
-out.rels <- unlist(fread(related_individuals, header = F))
+# Close relatives in dataset (as inferred by king analysis) and outliers 
+out.rels <- unlist(fread(args$related_individuals, header = F))
+out.dna <- unlist(fread(args$dna_outliers, header = F))
+out.rna <- unlist(fread(args$rna_outliers, header = F))
 
 # Combine gene info with normalized RNA
 filt_norm_counts_gene <- data.table(norm_tmm %>% 
@@ -73,13 +76,16 @@ filt_norm_counts_gene <- data.table(norm_tmm %>%
 ###### Make format for tensorQTL bed ######
 
 #### DNA data
-dna <- data.table(t(fread(pca_snp, header=F)))[-1]
+dna <- data.table(t(fread(args$pca_snp, header=F)))[-1]
 colnames(dna) <- c("sample","PC1","PC2","PC3","PC4","PC5")
 
 # Samples in Bed File
 
+# All outliers
+outs <- unique(c(out.rels, out.dna, out.rna))
+
 # Hard code samples and remove outliers/related individuals
-dna <- data.table(dna[!sample %in% out.rels])
+dna <- data.table(dna[!sample %in% outs])
 
 # Output RNA PCs 1-50 for eQTL saturation
 foreach(i=1:30) %do% {
@@ -131,7 +137,7 @@ foreach(i=1:30) %do% {
 
 # Switch sample names to those in the genetic data
 out <- data.table(filt_norm_counts_gene %>% 
-                    select(chrom, start, stop, gene, contains("TOR")))
+                    select(chr, start, end, gene_edit, contains("TOR")))
 
 out_s <- data.table(colnames(out)[-(1:4)]) %>% 
   left_join(meta %>% select(contains("SAMPLE_ID")), 
@@ -139,38 +145,26 @@ out_s <- data.table(colnames(out)[-(1:4)]) %>%
 
 colnames(out)[-(1:4)] <- out_s$SAMPLE_ID_NWD
 
-sampi.aff <- rownames(t(fin1.aff))[rownames(t(fin1.aff))%like%"NWD"]
-sampi.non <- rownames(t(fin1.non))[rownames(t(fin1.non))%like%"NWD"]
+sampi <- rownames(t(fin1))[rownames(t(fin1))%like%"NWD"]
 
 #### Output RNAseq expression data
-test.aff <- out %>% 
-  select("#chr"=chrom, start, end=stop, gene_id=gene, contains(sampi.aff))
+test<- out %>% 
+  select("#chr"=chr, start, end, gene_edit, contains(sampi))
 
-test.non <- out %>% 
-  select("#chr"=chrom, start, end=stop, gene_id=gene, contains(sampi.non))
-
-write.table(test.aff, 
-            file = "filt_rnaseq_norm_topchef_unrelated_affected.bed", 
-            quote = F, row.names = F, sep="\t")
-
-write.table(test.non, 
-            file = "filt_rnaseq_norm_topchef_unrelated_nonfailing.bed", 
+write.table(test, 
+            file = "filt_rnaseq_norm_topchef_unrelated.bed", 
             quote = F, row.names = F, sep="\t")
 
 # Output final sample list
-write.table(x = sampi.aff, 
-            file = "topchef_samples_affected_1_15_25.txt", 
-            sep = "\t", quote = F, row.names = F, col.names = F)
-
-write.table(x = sampi.non, 
-            file = "topchef_samples_nonfailing_1_15_25.txt", 
+write.table(x = sampi, 
+            file = "topchef_samples_1_15_25.txt", 
             sep = "\t", quote = F, row.names = F, col.names = F)
 
 ### Run Elbow Test ###
 
 # Wide to long
-pcmat <- t(filt_norm_counts %>% select(-c(Name, qc_individual_depth)))
-colnames(pcmat) <- filt_norm_counts$Name
+pcmat <- t(filt_norm_counts_gene %>% select(-c(chr, start, end)))
+colnames(pcmat) <- filt_norm_counts_gene$gene_edit
 
 # Convert all elements to numeric
 pcmat <- apply(pcmat, 2, as.numeric)
@@ -178,3 +172,8 @@ pcmat <- apply(pcmat, 2, as.numeric)
 # Elbow test 
 resultRunElbow <- PCAForQTL::runElbow(X = na.omit(pcmat))
 print(resultRunElbow)
+
+# Output elbow test
+write.table(x = resultRunElbow, 
+            file = "rna_pca_elbow_best_k", 
+            sep = "\t", quote = F, row.names = F, col.names = F)

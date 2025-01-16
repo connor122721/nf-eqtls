@@ -55,7 +55,7 @@ process ExtractAndIndexVCF {
             --types snps,indels \\
             -i 'TYPE="snp" || (TYPE="indel" && ILEN<50)' \\
             --min-ac 1 \\
-            -r ${chromosome}:10000000-20000000 \\
+            -r ${chromosome}:1-20000000 \\
             --threads "${params.threads}" \\
             --samples-file "${params.samp}" \\
             -Oz -o freeze.10b.${chromosome}.pass_only.phased.TOPchef.vcf.gz
@@ -154,7 +154,7 @@ process VCFThin {
 // ---------------------------
 
 // Side nextflow modules to run
-include { reformat_group_covariates; reformat_covariates } from './modules/reformat_group_cov.nf'
+include { reformat_tss_gtf } from './modules/reformat_TSS_gtf.nf'
 include { ConcatVCF as ConcatVCF_1 } from './modules/concatvcf.nf'
 include { ConcatVCF as ConcatVCF_2 } from './modules/concatvcf.nf'
 include { King } from './modules/king.nf'
@@ -169,7 +169,10 @@ workflow {
 
     // 1) ExtractAndIndexVCF
     def extracted_ch = ExtractAndIndexVCF(chroms)
-
+    
+    // 2) Reformatted GTF
+    def form_gtf = reformat_tss_gtf(file(params.gtf))
+    
     // 3) Concat all unthinned VCFs
     def unfilteredList_ch = extracted_ch.map { it[1] }.collect()
     def unfilteredOut_ch  = Channel.value(params.out_vcf_full)
@@ -201,35 +204,26 @@ workflow {
     // 11) Normalize RNA counts
     def norm_qc = normalize_and_pca(
         file(params.metadata), 
-        file(params.mapp_file), 
-        file(params.gene_gtf), 
-        file(params.gene_count_file)
-    )
+        file(params.mapp_file),
+        form_gtf.gtf,
+        file(params.gene_count_file))
 
     // 12) PCA on normalized RNA counts
     def pca_tmm = tmm_pipeline(
         file(params.metadata), 
         file(params.mapp_file), 
-        file(params.gene_gtf), 
-        file(params.gene_count_file)
-    )
+        form_gtf.gtf, 
+        file(params.gene_count_file))
 
     // 13) Reformat PC covariates and VCF for cis-eQTL pipeline.
     def split = reformat_eqtl(
         file(params.metadata),
-        file(params.gene_gtf),
+        form_gtf.gtf,
         plotKingOut.related_individuals,
+        norm_qc.rna_outliers,
+        pca.dna_outliers,
         pca_tmm.norm_gene_count,
-        pca.tensorqtl_pca
-    )
-    
-    // #a) Reformat chromosome and group Bed files
-    def group_bed_ch = extracted_ch.flatMap { chrom, vcf, vcf_index ->
-        params.groups.collect { group -> tuple(chrom, group, vcf) }}
-    def reformatted_group_bed_ch = reformat_group_covariates(group_bed_ch)
-
-    // #b) Reformat chromosome files
-    def bed_ch = extracted_ch.map { chrom, vcf, vcf_index -> tuple(chrom, vcf) }
-    def reformatted_bed_ch = reformat_covariates(bed_ch)
+        pca_tmm.pca_tmm,
+        pca.tensorqtl_pca)
 
 }

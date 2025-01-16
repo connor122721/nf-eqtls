@@ -22,6 +22,7 @@ process normalize_and_pca {
         file "norm_medrat.tsv"
         file "pca_medrat.tsv"
         file "pca_medrat_plot.pdf"
+        path "${params.rna_outliers}", emit: rna_outliers
 
     script:
         """
@@ -29,13 +30,13 @@ process normalize_and_pca {
         source activate base
         
         python ${params.scripts_dir}/medratio_norm_pca.py \\
-            --metadata $meta_file \\
-            --mappability $mapp_file \\
-            --gtf $gtf_file \\
-            --gene_counts $gene_count_file \\
+            --metadata ${meta_file} \\
+            --mappability ${mapp_file} \\
+            --gtf ${gtf_file} \\
+            --gene_counts ${gene_count_file} \\
             --output_normalized norm_medrat.tsv \\
             --output_pca pca_medrat.tsv \\
-            --output_outliers ${params.dna_outliers}
+            --output_outliers ${params.rna_outliers}
         """
 }
 
@@ -52,8 +53,8 @@ process tmm_pipeline {
         path gene_count_file
 
     output:
-        file "norm_tmm.tsv", emit: norm_gene_count
-        file "pca_tmm.tsv"
+        path "norm_tmm.tsv", emit: norm_gene_count
+        path "pca_tmm.tsv", emit: pca_tmm
         file "pca_tmm.pdf"
         file "sex_assessment_plot.pdf"
 
@@ -63,19 +64,19 @@ process tmm_pipeline {
         source activate base
 
         python ${params.scripts_dir}/tmm_norm_pca_sex.py \\
-          --metadata ${meta_file} \\
-          --gene_counts ${gene_count_file} \\
-          --gtf ${gtf_file} \\
-          --mappability ${mapp_file} \\
-          --output_norm norm_tmm.tsv \\
-          --output_pca pca_tmm.tsv \\
-          --output_plot_pdf pca_tmm.pdf \\
-          --output_sex_plot_pdf sex_assessment_plot.pdf \\
-          --xist_threshold 10.0 \\
-          --rps4y1_threshold 1.0 \\
-          --low_expression_threshold 0.1 \\
-          --sample_expression_frac 0.2 \\
-          --affected_expression_frac 0.2
-          # --exclude_unclear_sex   # Uncomment if you want to exclude samples with unclear sex
+            --metadata ${meta_file} \\
+            --gene_counts ${gene_count_file} \\
+            --gtf ${gtf_file} \\
+            --mappability ${mapp_file} \\
+            --output_norm norm_tmm.tsv \\
+            --output_pca pca_tmm.tsv \\
+            --output_plot_pdf pca_tmm.pdf \\
+            --output_sex_plot_pdf sex_assessment_plot.pdf \\
+            --xist_threshold 10.0 \\
+            --rps4y1_threshold 1.0 \\
+            --low_expression_threshold 0.1 \\
+            --sample_expression_frac 0.2 \\
+            --affected_expression_frac 0.2
+            # --exclude_unclear_sex   # Uncomment if you want to exclude samples with unclear sex
         """
 }
