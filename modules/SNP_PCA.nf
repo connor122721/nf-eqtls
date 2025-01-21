@@ -26,10 +26,10 @@ process VCF_to_GDS {
         module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Run the R script
-        Rscript ${params.scripts_dir}/vcf2gds.R \
-            ${input_vcf_ch} \
-            ${params.gds_filename} \
-            ${params.threads}
+        Rscript ${params.scripts_dir}/vcf2gds.R \\
+             --input_vcf_files ${input_vcf_ch} \\
+            --output_gds ${params.gds_filename} \\
+            --threads ${params.threads}
         """
 }
 
@@ -42,7 +42,7 @@ process SNP_PCA {
 
     // Define the input
     input:
-        path gds_file
+        path input_gds
         path related_individuals
 
     // Define the output
@@ -57,14 +57,13 @@ process SNP_PCA {
         """
         module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
-        # Execute the R script
         Rscript ${params.scripts_dir}/topchef_dna_pca.R \\
-            ${gds_file} \\
-            ${params.metadata} \\
-            ${related_individuals} \\
-            ${params.pca_rds} \\
-            ${params.pca_plot} \\
-            ${params.tensorqtl_pca} \\
-            ${params.dna_outliers}
+            --input_gds ${input_gds} \\
+            --metadata_file ${params.metadata} \\
+            --related_individuals ${related_individuals} \\
+            --pca_rds ${params.pca_rds} \\
+            --pca_plot ${params.pca_plot} \\
+            --tensorqtl_pca ${params.tensorqtl_pca} \\
+            --outlier_output ${params.dna_outliers}
         """
 }

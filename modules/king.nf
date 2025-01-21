@@ -1,9 +1,17 @@
+#!/usr/bin/env nextflow
+
+nextflow.enable.dsl=2
+
+// ---------------------------------------
+//  Processes related to kinship analyses
+// ----------------------------------------
+
 // Run King - kinship analyses
 process King {
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/king", mode: 'copy'
 
-    // Collect all .vcf.gz paths from VCFThin into a single list
+    // Collect all .vcf.gz paths into a single list
     input:
         path(input_vcf)
 
@@ -52,8 +60,10 @@ process PlotKinship {
         """
         module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
-        Rscript /standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/scripts/plot_king.R \\
-            ${king_files} \\
-            ${params.metadata}
+        Rscript ${params.scripts_dir}/plot_king.R \\
+            --king_input ${king_files} \\
+            --metadata_file ${params.metadata} \\
+            --output_plot kinship.pdf \\
+            --output_related relatedIndividuals.txt
         """
 }

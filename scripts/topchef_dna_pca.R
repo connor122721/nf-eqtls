@@ -9,22 +9,26 @@ library(SNPRelate)
 library(ggforce)
 library(patchwork)
 library(parallel)
+library(argparse)
 
-# Parse command-line arguments
-args <- commandArgs(trailingOnly = TRUE)
+# Argument parser
+parser <- ArgumentParser()
+parser$add_argument("--input_gds", required=TRUE, help="Path to input GDS file")
+parser$add_argument("--metadata_file", required=TRUE, help="Path to metadata file")
+parser$add_argument("--related_individuals", required=TRUE, help="Path to related individuals file")
+parser$add_argument("--pca_rds", required=TRUE, help="Path to output PCA RDS file")
+parser$add_argument("--pca_plot", required=TRUE, help="Path to output PCA plot")
+parser$add_argument("--tensorqtl_pca", required=TRUE, help="Path to output TensorQTL PCA file")
+parser$add_argument("--outlier_output", required=TRUE, help="Path to output outliers file")
+args <- parser$parse_args()
 
-# Check for correct number of arguments
-if(length(args) != 7){
-  stop("Usage: perform_pca.R <input_gds> <metadata_file> <related_individuals> <pca_rds> <pca_plot> <tensorqtl_pca> <outliers_nam>")
-}
-
-input_gds <- args[1]
-metadata_file <- args[2]
-related_individuals <- args[3]
-pca_rds <- args[4]
-pca_plot <- args[5]
-tensorqtl_pca <- args[6]
-outlier_output <- args[7]
+input_gds <- args$input_gds
+metadata_file <- args$metadata_file
+related_individuals <- args$related_individuals
+pca_rds <- args$pca_rds
+pca_plot <- args$pca_plot
+tensorqtl_pca <- args$tensorqtl_pca
+outlier_output <- args$outlier_output
 
 # Register cores
 threads <- parallel::detectCores()
@@ -109,7 +113,7 @@ mal.dt <- data.table(
   pca %>% select(sample, Affected_NF), 
   mahal = mal, 
   pval = p,
-  padj = p.adjust(p, method = "BH"))
+  padj = p.adjust(p, method = "bonferroni"))
 
 outliers <- mal.dt[padj < 0.05]$sample
 
@@ -117,12 +121,12 @@ outliers <- mal.dt[padj < 0.05]$sample
 themei <- {
   theme_bw() + 
     theme(
-      axis.title.x = element_text(face = "bold", size = 16),
-      axis.text.x = element_text(face = "bold", size = 14),
-      axis.title.y = element_text(face = "bold", size = 16),
-      axis.text.y = element_text(face = "bold", size = 14),
-      legend.text = element_text(face = "bold", size = 14),
-      legend.title = element_text(face = "bold", size = 16))}
+      axis.title.x = element_text(face = "bold", size = 14),
+      axis.text.x = element_text(face = "bold", size = 12),
+      axis.title.y = element_text(face = "bold", size = 14),
+      axis.text.y = element_text(face = "bold", size = 12),
+      legend.text = element_text(face = "bold", size = 12),
+      legend.title = element_text(face = "bold", size = 14))}
 
 # Fix self-reported ancestry
 pca <- data.table(pca %>% 
@@ -138,100 +142,100 @@ pca <- data.table(pca %>%
 pc12 <- {
   pca[!sample %in% outliers] %>%
     ggplot(aes(x = PC1, y = PC2, color = RaceSimp)) +
-    geom_point(size = 6, alpha = 0.6) +
+    geom_point(size = 4, alpha = 0.6) +
     theme_minimal() + 
     labs(
       x = paste("PC1 (", round(ccm_pca$varprop[[1]], digits = 3) * 100, " %)", sep = ""),
       y = paste("PC2 (", round(ccm_pca$varprop[[2]], digits = 3) * 100, " %)", sep = "")) +
     theme(
-      strip.text = element_text(face = "bold.italic", size = 16),
-      legend.text = element_text(size = 16, face = "bold.italic"),
-      legend.title = element_text(face = "bold", size = 18),
-      axis.text.x = element_text(face = "bold", size = 18),
-      axis.text.y = element_text(face = "bold", size = 18),
-      axis.title.x = element_text(face = "bold", size = 20),
-      axis.title.y = element_text(face = "bold", size = 20),
-      axis.title = element_text(face = "bold", size = 20))
+      strip.text = element_text(face = "bold.italic", size = 14),
+      legend.text = element_text(size = 14, face = "bold.italic"),
+      legend.title = element_text(face = "bold", size = 14),
+      axis.text.x = element_text(face = "bold", size = 14),
+      axis.text.y = element_text(face = "bold", size = 14),
+      axis.title.x = element_text(face = "bold", size = 14),
+      axis.title.y = element_text(face = "bold", size = 14),
+      axis.title = element_text(face = "bold", size = 14))
 }
 
 # PC 2/3 Plot
 pc23 <- {
   pca[!sample %in% outliers] %>%
     ggplot(aes(x = PC2, y = PC3, color = RaceSimp)) +
-    geom_point(size = 6, alpha = 0.6) +
+    geom_point(size = 4, alpha = 0.6) +
     theme_minimal() + 
     labs(
       x = paste("PC2 (", round(ccm_pca$varprop[[2]], digits = 3) * 100, " %)", sep = ""),
       y = paste("PC3 (", round(ccm_pca$varprop[[3]], digits = 3) * 100, " %)", sep = "")) +
     theme(
-      strip.text = element_text(face = "bold.italic", size = 16),
-      legend.text = element_text(size = 16, face = "bold.italic"),
-      legend.title = element_text(face = "bold", size = 18),
-      axis.text.x = element_text(face = "bold", size = 18),
-      axis.text.y = element_text(face = "bold", size = 18),
-      axis.title.x = element_text(face = "bold", size = 20),
-      axis.title.y = element_text(face = "bold", size = 20),
-      axis.title = element_text(face = "bold", size = 20))
+      strip.text = element_text(face = "bold.italic", size = 14),
+      legend.text = element_text(size = 14, face = "bold.italic"),
+      legend.title = element_text(face = "bold", size = 14),
+      axis.text.x = element_text(face = "bold", size = 14),
+      axis.text.y = element_text(face = "bold", size = 14),
+      axis.title.x = element_text(face = "bold", size = 14),
+      axis.title.y = element_text(face = "bold", size = 14),
+      axis.title = element_text(face = "bold", size = 14))
 }
 
 # PC 3/4 Plot
 pc34 <- {
   pca[!sample %in% outliers] %>%
     ggplot(aes(x = PC3, y = PC4, color = RaceSimp)) +
-    geom_point(size = 6, alpha = 0.6) +
+    geom_point(size = 4, alpha = 0.6) +
     theme_minimal() + 
     labs(
       x = paste("PC3 (", round(ccm_pca$varprop[[3]], digits = 3) * 100, " %)", sep = ""),
       y = paste("PC4 (", round(ccm_pca$varprop[[4]], digits = 3) * 100, " %)", sep = "")) +
     theme(
-      strip.text = element_text(face = "bold.italic", size = 16),
-      legend.text = element_text(size = 16, face = "bold.italic"),
-      legend.title = element_text(face = "bold", size = 18),
-      axis.text.x = element_text(face = "bold", size = 18),
-      axis.text.y = element_text(face = "bold", size = 18),
-      axis.title.x = element_text(face = "bold", size = 20),
-      axis.title.y = element_text(face = "bold", size = 20),
-      axis.title = element_text(face = "bold", size = 20))
+      strip.text = element_text(face = "bold.italic", size = 14),
+      legend.text = element_text(size = 14, face = "bold.italic"),
+      legend.title = element_text(face = "bold", size = 14),
+      axis.text.x = element_text(face = "bold", size = 14),
+      axis.text.y = element_text(face = "bold", size = 14),
+      axis.title.x = element_text(face = "bold", size = 14),
+      axis.title.y = element_text(face = "bold", size = 14),
+      axis.title = element_text(face = "bold", size = 14))
 }
 
 # PC 4/5 Plot
 pc45 <- {
   pca[!sample %in% outliers] %>%
     ggplot(aes(x = PC4, y = PC5, color = RaceSimp)) +
-    geom_point(size = 6, alpha = 0.6) +
+    geom_point(size = 4, alpha = 0.6) +
     theme_minimal() + 
     labs(
       x = paste("PC4 (", round(ccm_pca$varprop[[4]], digits = 3) * 100, " %)", sep = ""),
       y = paste("PC5 (", round(ccm_pca$varprop[[5]], digits = 3) * 100, " %)", sep = "")) +
     theme(
-      strip.text = element_text(face = "bold.italic", size = 16),
-      legend.text = element_text(size = 16, face = "bold.italic"),
-      legend.title = element_text(face = "bold", size = 18),
-      axis.text.x = element_text(face = "bold", size = 18),
-      axis.text.y = element_text(face = "bold", size = 18),
-      axis.title.x = element_text(face = "bold", size = 20),
-      axis.title.y = element_text(face = "bold", size = 20),
-      axis.title = element_text(face = "bold", size = 20))
+      strip.text = element_text(face = "bold.italic", size = 14),
+      legend.text = element_text(size = 14, face = "bold.italic"),
+      legend.title = element_text(face = "bold", size = 14),
+      axis.text.x = element_text(face = "bold", size = 14),
+      axis.text.y = element_text(face = "bold", size = 14),
+      axis.title.x = element_text(face = "bold", size = 14),
+      axis.title.y = element_text(face = "bold", size = 14),
+      axis.title = element_text(face = "bold", size = 14))
 }
 
 # PC 5/6 Plot
 pc56 <- {
   pca[!sample %in% outliers] %>%
     ggplot(aes(x = PC5, y = PC6, color = RaceSimp)) +
-    geom_point(size = 6, alpha = 0.6) +
+    geom_point(size = 4, alpha = 0.6) +
     theme_minimal() + 
     labs(
       x = paste("PC5 (", round(ccm_pca$varprop[[5]], digits = 3) * 100, " %)", sep = ""),
       y = paste("PC6 (", round(ccm_pca$varprop[[6]], digits = 3) * 100, " %)", sep = "")) +
     theme(
-      strip.text = element_text(face = "bold.italic", size = 16),
-      legend.text = element_text(size = 16, face = "bold.italic"),
-      legend.title = element_text(face = "bold", size = 18),
-      axis.text.x = element_text(face = "bold", size = 18),
-      axis.text.y = element_text(face = "bold", size = 18),
-      axis.title.x = element_text(face = "bold", size = 20),
-      axis.title.y = element_text(face = "bold", size = 20),
-      axis.title = element_text(face = "bold", size = 20))
+      strip.text = element_text(face = "bold.italic", size = 14),
+      legend.text = element_text(size = 14, face = "bold.italic"),
+      legend.title = element_text(face = "bold", size = 14),
+      axis.text.x = element_text(face = "bold", size = 14),
+      axis.text.y = element_text(face = "bold", size = 14),
+      axis.title.x = element_text(face = "bold", size = 14),
+      axis.title.y = element_text(face = "bold", size = 14),
+      axis.title = element_text(face = "bold", size = 14))
 }
 
 # Scree plot

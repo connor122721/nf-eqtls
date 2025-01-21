@@ -10,6 +10,7 @@ output_test/
 output_test_new/
 output/
 work/
+future/
 
 # Ignore specific scripts directory checkpoints
 scripts/.ipynb_checkpoints

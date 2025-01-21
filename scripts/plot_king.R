@@ -5,11 +5,20 @@
 # Libraries
 library(tidyverse)
 library(data.table)
+library(argparse)
 
-# Command line arguments
-args <- commandArgs(trailingOnly = TRUE)
-king_input <- args[1]
-metadata_file <- args[2]
+# Argument parser
+parser <- ArgumentParser()
+parser$add_argument("--king_input", required=TRUE, help="Path to KING input file")
+parser$add_argument("--metadata_file", required=TRUE, help="Path to metadata file")
+parser$add_argument("--output_plot", required=TRUE, help="Path to output kinship plot")
+parser$add_argument("--output_related", required=TRUE, help="Path to output related individuals file")
+args <- parser$parse_args()
+
+king_input <- args$king_input
+metadata_file <- args$metadata_file
+output_plot <- args$output_plot
+output_related <- args$output_related
 
 # Metadata
 meta <- data.table(fread(metadata_file, header = TRUE))
@@ -60,7 +69,7 @@ kinPlot <- {
 }
 
 # Output
-ggsave(plot = kinPlot, filename = "kinship.pdf")
+ggsave(plot = kinPlot, filename = output_plot)
 
 # Remove related individuals
 fullSibs <- kin[rel=="Full-sibling"]$ID1
@@ -68,8 +77,8 @@ firstDegree <- kin[rel=="1st-degree"]$ID1
 table(kin[!ID1 %in% c(fullSibs, firstDegree)]$rel)
 
 # Related Individuals
-write.table(x = unique(fullSibs, firstDegree), 
-            file = "relatedIndividuals.txt", 
+write.table(x = unique(c(fullSibs, firstDegree)), 
+            file = output_related, 
             quote = F, 
             sep = "\t", 
             row.names = F, 

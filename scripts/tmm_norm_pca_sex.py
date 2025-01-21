@@ -194,14 +194,6 @@ def filter_samples_based_on_sex(ccm, meta, exclude_unclear_sex):
 def main():
     args = parse_arguments()
 
-    if args.test:
-        # TESTING...
-        print("Running in TESTING mode with predefined file paths.")
-        args.metadata = "/standard/vol185/cphg_Manichaikul/users/csm6hg/metadata/metadata_10_17_2024_CSM.txt"
-        args.mappability = "/standard/vol185/cphg_Manichaikul/users/csm6hg/data/hg38_gene_mappability.txt.gz"
-        args.gtf = "/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.TSS.bed"
-        args.gene_counts = "/standard/vol185/TOPMed/TOPCHef/82214/topmed-dcc/exchange/phs002038_TOPMed_TOPCHeF/Omics/RNASeq/release3/TOPMed_Taylor_P4.RNASeQCv2.3.6_gene_reads.gct.gz"
-
     # -------------------------------------------------------------------
     # 1) Load gene counts and metadata
     # -------------------------------------------------------------------
@@ -294,7 +286,7 @@ def main():
 
     # Calculate the percentage of affected samples with coverage >= threshold per gene
     coverage_frac_threshold = args.affected_expression_frac
-    genes_meeting_coverage = (affected_counts > 0.1).sum(axis=1) / len(affected_samples) >= coverage_frac_threshold
+    genes_meeting_coverage = (affected_counts > low_expr_thr).sum(axis=1) / len(affected_samples) >= coverage_frac_threshold
 
     # Apply the coverage filter
     ccm_filtered_final = ccm_final[genes_meeting_coverage]

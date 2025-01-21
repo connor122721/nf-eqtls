@@ -149,7 +149,7 @@ sampi <- rownames(t(fin1))[rownames(t(fin1))%like%"NWD"]
 
 #### Output RNAseq expression data
 test<- out %>% 
-  select("#chr"=chr, start, end, gene_edit, contains(sampi))
+  select("#chr"=chr, start, end, phenotype_id=gene_edit, contains(sampi))
 
 write.table(test, 
             file = "filt_rnaseq_norm_topchef_unrelated.bed", 

@@ -4,18 +4,18 @@
 # Libraries
 library(SeqArray)
 library(parallel)
+library(argparse)
 
-# Parse command-line arguments
-args <- commandArgs(trailingOnly = TRUE)
+# Argument parser
+parser <- ArgumentParser()
+parser$add_argument("--input_vcf_files", required=TRUE, help="Comma-separated list of input VCF files")
+parser$add_argument("--output_gds", required=TRUE, help="Path to output GDS file")
+parser$add_argument("--threads", required=TRUE, type="integer", help="Number of threads to use")
+args <- parser$parse_args()
 
-# Check for correct number of arguments
-if(length(args) != 3){
-  stop("Usage: vcf_to_gds.R <input_vcf_files> <output_gds> <threads>")
-}
-
-input_vcf <- strsplit(args[1], ",")[[1]] # Comma-separated list
-output_gds <- args[2]
-threads <- as.numeric(args[3])
+input_vcf <- strsplit(args$input_vcf_files, ",")[[1]]
+output_gds <- args$output_gds
+threads <- args$threads
 
 # Register cores
 seqParallelSetup(threads)

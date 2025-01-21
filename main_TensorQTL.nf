@@ -4,16 +4,18 @@ nextflow.enable.dsl=2
 
 /*
  * A Nextflow pipeline that:
- *  1. Reads a list of chromosomes.
- *  2. Concatenates all non-thinned VCFs.
- *  3. Run King on extracted full VCF.
- *  4. For each chromosome, extracts and indexes a VCF using bcftools.
- *  5. Calculates linkage disequilibrium and prunes the VCF using plink2.
- *  6. Thins VCF using plink2 --bp-space 250.
- *  7. Concatenates all thinned VCFs into one final VCF.
- *  8. Create GDS object from final thinned VCF.
- *  9. Create SNP PCA and output covariates.
- *  10. Reformat PC covariates and VCF for cis-eQTL pipeline. 
+ *  Reformats GTF for transcription start sites.
+ *  Extracts and indexes a VCF using bcftools.
+ *  Concatenates all non-thinned VCFs.
+ *  Runs King on extracted full VCF.
+ *  Calculates linkage disequilibrium and prunes the VCF.
+ *  Thins VCF.
+ *  Concatenates all thinned VCFs into one final VCF.
+ *  Creates GDS object from final thinned VCF.
+ *  Creates SNP PCA and outputs covariates.
+ *  Reformats PC covariates and VCF for cis-eQTL pipeline.
+ *  Normalizes RNA counts.
+ *  Performs PCA on normalized RNA counts.
  */
 
 // ---------------------------
@@ -55,7 +57,7 @@ process ExtractAndIndexVCF {
             --types snps,indels \\
             -i 'TYPE="snp" || (TYPE="indel" && ILEN<50)' \\
             --min-ac 1 \\
-            -r ${chromosome}:1-20000000 \\
+            -r ${chromosome} \\
             --threads "${params.threads}" \\
             --samples-file "${params.samp}" \\
             -Oz -o freeze.10b.${chromosome}.pass_only.phased.TOPchef.vcf.gz
@@ -138,8 +140,8 @@ process VCFThin {
         module load htslib
 
         plink2 \\
-            --threads ${params.threads} \\
             --memory 18000 \\
+            --threads ${params.threads} \\
             --vcf ${pruned_vcf} \\
             --bp-space 250 \\
             --recode vcf bgz \\
@@ -171,7 +173,7 @@ workflow {
     def extracted_ch = ExtractAndIndexVCF(chroms)
     
     // 2) Reformatted GTF
-    def form_gtf = reformat_tss_gtf(file(params.gtf))
+    def form_gtf = reformat_tss_gtf(params.gtf)
     
     // 3) Concat all unthinned VCFs
     def unfilteredList_ch = extracted_ch.map { it[1] }.collect()
