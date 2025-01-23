@@ -135,8 +135,8 @@ foreach(i=1:30) %do% {
   
 }
 
-# Switch sample names to those in the genetic data
-out <- data.table(filt_norm_counts_gene %>% 
+# Switch sample names to those in the genetic data, also remove Y chromosome genes
+out <- data.table(filt_norm_counts_gene[!chr %in% "chrY"] %>% 
                     select(chr, start, end, gene_edit, contains("TOR")))
 
 out_s <- data.table(colnames(out)[-(1:4)]) %>% 
@@ -148,7 +148,7 @@ colnames(out)[-(1:4)] <- out_s$SAMPLE_ID_NWD
 sampi <- rownames(t(fin1))[rownames(t(fin1))%like%"NWD"]
 
 #### Output RNAseq expression data
-test<- out %>% 
+test <- out %>% 
   select("#chr"=chr, start, end, phenotype_id=gene_edit, contains(sampi))
 
 write.table(test, 
@@ -173,7 +173,7 @@ pcmat <- apply(pcmat, 2, as.numeric)
 resultRunElbow <- PCAForQTL::runElbow(X = na.omit(pcmat))
 print(resultRunElbow)
 
-# Output elbow test
+# Output elbow test results
 write.table(x = resultRunElbow, 
             file = "rna_pca_elbow_best_k", 
             sep = "\t", quote = F, row.names = F, col.names = F)
