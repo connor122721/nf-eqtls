@@ -115,7 +115,7 @@ process TensorQTLNominal {
               val(plink_prefix)    
 
     output:
-        path "*cis_qtl.txt.gz"
+        path "*parquet"
 
     script:
         """
@@ -129,7 +129,7 @@ process TensorQTLNominal {
             topchef_${chromosome}_MaxPC${pc} \\
             --maf_threshold 0.01 \\
             --covariates ${params.out}/eqtl/${covariate} \\
-            --mode cis-nominal
+            --mode cis_nominal
         """
 }
 
@@ -138,48 +138,48 @@ process TensorQTLNominal {
 // ---------------------------
 
 include { analysis_eqtl_saturation } from './modules/analysis_eqtl_saturation.nf'
+include { prepGWAS } from './modules/coloc.nf'
 
 // Run TensorQTL submission for each chromosome and covariate file
 workflow {
 
     // Run bedfiles
-    // chroms.view()
-    // chrom_covs.view()
     bed = CreateBedFiles(chroms)
     plink_prefix_ch = bed.plink_prefix
-
-    // Debugging outputs
-    // plink_prefix_ch.view()
 
     // Submit TensorQTL jobs
     tensorqtl_input_ch = chrom_covs
         .combine(plink_prefix_ch, by: 0)
 
-    // chrom_covs.combine(plink_prefix_ch, by:0).view()
     // Run tensorQTL by chromosome
     TensorQTLSubmission(tensorqtl_input_ch)
-
-    // Run tensorQTL - nominal p-value
-    tensorqtl_input_nom_ch = chrom_covs
-        .combine(plink_prefix_ch, by: 0)
-        .filter { it[2] == 15 }  // Add this line to filter for PC equal to 15
-
-    // tensorqtl_input_nom_ch.view()
 
     // Extract unique path from TensorQTLSubmission
     Channel
         TensorQTLSubmission.out
-        .map { tuple -> tuple[1] }
-        .unique()
+        .map { tuple -> tuple[0] }
         .collect()
-        .map { list -> list[0] }
-        .set { out }
-
-    // analysis_eqtl_saturation(out)
-
-    // Extract Best K to run nominal p-value
+        .set { outi }
     
+    // Extract Best K to run nominal p-value
+    analysis_eqtl_saturation(outi)    
+
+    // Extract Best K
+    analysis_eqtl_saturation.out.bestK
+        .splitText()
+        .toFloat()
+        .set { best_k }
+    
+    // Run tensorQTL - nominal p-value
+    chrom_covs
+        .combine(plink_prefix_ch, by: 0)
+        .filter { it[2] == 30 }  // Filter for PC equal to best k
+        .set { tensorqtl_input_nom_ch }
 
     // Run tensorQTL - nominal p-value
-    // TensorQTLNominal(tensorqtl_input_nom_ch)
+    TensorQTLNominal(tensorqtl_input_nom_ch)
+
+    // Prep GWAS for coloc
+    prepGWAS()
+    
 }
