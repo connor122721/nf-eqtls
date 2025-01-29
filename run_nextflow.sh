@@ -17,4 +17,4 @@ module load nextflow
 cd /standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna
 
 # Run nextflow
-nextflow run main_TensorQTL.nf -profile slurm -resume
+nextflow run main.nf -profile slurm -resume

@@ -31,7 +31,7 @@ process normalize_and_pca {
         
         python ${params.scripts_dir}/medratio_norm_pca.py \\
             --metadata ${meta_file} \\
-            --mappability ${mapp_file} \\
+            --skip_mappability_filter \\
             --gtf ${gtf_file} \\
             --gene_counts ${gene_count_file} \\
             --output_normalized norm_medrat.tsv \\
@@ -67,7 +67,7 @@ process tmm_pipeline {
             --metadata ${meta_file} \\
             --gene_counts ${gene_count_file} \\
             --gtf ${gtf_file} \\
-            --mappability ${mapp_file} \\
+            --skip_mappability_filter \\
             --output_norm norm_tmm.tsv \\
             --output_pca pca_tmm.tsv \\
             --output_plot_pdf pca_tmm.pdf \\

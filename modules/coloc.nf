@@ -32,7 +32,9 @@ process runColoc {
     publishDir "${params.out}/coloc", mode: 'copy'
 
     input:
-        path(processed_GWAS)
+        tuple path(eqtl),
+        val(chromosome),
+        val(best_k)
 
     output:
         path("*")
@@ -41,8 +43,17 @@ process runColoc {
         """
         module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
-        # Run analysis script
-        Rscript ${params.scripts_dir}/runColoc.R \\
-            --gwas ${processed_GWAS}
+        # Get input files
+        processed_GWAS=${params.out}/gwas/*${chromosome}.rds
+        firstRun=${params.out}/tensorqtl/*${chromosome}_MaxPC30.cis_qtl.txt.gz
+
+        # Run coloc analysis script
+        Rscript ${params.scripts_dir}/run_cisNominaleQTL_coloc.R \\
+            --gwas \${processed_GWAS} \\
+            --eqtl ${eqtl} \\
+            --shortList \${firstRun} \\
+            --chromosome ${chromosome} \\
+            --N_gwas 1665481 \\
+            --N_eqtl 516
         """
 }

@@ -5,7 +5,7 @@
 By: Connor S. Murray
 TMM + inverse normal transform + PCA script
 Plot the first 6 PCs + scree plot, color by Affected_NF
-and output up to the 30th PC in pca_data.tsv
+and output up to the 50th PC in pca_data.tsv
 Additionally, assess biological sex based on XIST and RPS4Y1 expression.
 """
 
@@ -23,15 +23,17 @@ import seaborn as sns
 import qtl.norm  # Must have this installed to use qtl.norm.edger_cpm
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="TMM + INT normalization + PCA pipeline (up to PC30) with 6-PC plot and sex assessment.")
+    parser = argparse.ArgumentParser(description="TMM + INT normalization + PCA pipeline (up to PC50) with 6-PC plot and sex assessment.")
     parser.add_argument("--metadata", required=False, help="Path to metadata file (must include SAMPLE_ID_TOR, Affected_NF).")
     parser.add_argument("--gene_counts", required=False, help="Path to gene counts file (GCT format).")
     parser.add_argument("--gtf", required=False, help="Path to GTF bed file (e.g., gencode.v34...).")
     parser.add_argument("--mappability", required=False, help="Path to gzipped mappability file (hg38_gene_mappability.txt.gz).")
+    parser.add_argument("--skip_mappability_filter", action="store_true",
+                        help="Flag to skip the low-mappability gene filtering step.")
     parser.add_argument("--output_norm", default="normalized_data_tmm.tsv",
                         help="Output path for final TMM + inverse-normal-transformed data (genes x samples).")
     parser.add_argument("--output_pca", default="pca_data_tmm.tsv",
-                        help="Output path for PCA data (PC1..PC30).")
+                        help="Output path for PCA data (PC1..PC50).")
     parser.add_argument("--output_plot_pdf", default="pca_plot_tmm.pdf",
                         help="Output path for PCA plot PDF (first 6 PCs + scree).")
     parser.add_argument("--output_sex_plot_pdf", default="sex_assessment_plot.pdf",
@@ -195,6 +197,13 @@ def main():
     args = parse_arguments()
 
     # -------------------------------------------------------------------
+    # Validate Arguments Related to Mappability Filtering
+    # -------------------------------------------------------------------
+    if not args.skip_mappability_filter and not args.mappability:
+        parser = argparse.ArgumentParser()
+        parser.error("--mappability is required unless --skip_mappability_filter is set.")
+
+    # -------------------------------------------------------------------
     # 1) Load gene counts and metadata
     # -------------------------------------------------------------------
     gene_counts, meta, meta_full = load_data(args.gene_counts, args.metadata)
@@ -264,13 +273,18 @@ def main():
     # -------------------------------------------------------------------
     # 7) Remove low-mappability genes
     # -------------------------------------------------------------------
-    print("Loading mappability data...")
-    mapp_df = pd.read_table(args.mappability, header=0, names=["gene_id", "mappability"])
-    low_map = set(mapp_df.loc[mapp_df["mappability"] <= 0.5, "gene_id"])
-    print(f"Number of low-mappability genes: {len(low_map)}")
-    keep_mask = ~ccm_in_gtf.index.isin(low_map)
-    ccm_final = ccm_in_gtf[keep_mask]
-    print(f"Final shape after removing low-mappability genes: {ccm_final.shape}")
+    if not args.skip_mappability_filter:
+        print("Loading mappability data...")
+        mapp_df = pd.read_table(args.mappability, header=0, names=["gene_id", "mappability"])
+        low_map = set(mapp_df.loc[mapp_df["mappability"] <= 0.5, "gene_id"])
+        print(f"Number of low-mappability genes: {len(low_map)}")
+        keep_mask = ~ccm_in_gtf.index.isin(low_map)
+        ccm_final = ccm_in_gtf[keep_mask]
+        print(f"Final shape after removing low-mappability genes: {ccm_final.shape}")
+    else:
+        print("Skipping low-mappability gene filtering as per user request.")
+        ccm_final = ccm_in_gtf.copy()
+        print(f"Shape after skipping mappability filter: {ccm_final.shape}")
 
     # -------------------------------------------------------------------
     # 8) Filter genes with low coverage among affected samples
@@ -313,13 +327,13 @@ def main():
     # -------------------------------------------------------------------
     # shape => (samples x genes)
     data_for_pca = ccm_tmm_int.T.astype(float)
-    print(f"Performing PCA with 30 components on shape: {data_for_pca.shape}")
-    pca = PCA(n_components=30)
+    print(f"Performing PCA with 50 components on shape: {data_for_pca.shape}")
+    pca = PCA(n_components=50)
     data_scaled = StandardScaler().fit_transform(data_for_pca)
     pca_result = pca.fit_transform(data_scaled)
 
     # Build a DataFrame
-    pc_columns = [f"PC{i+1}" for i in range(30)]
+    pc_columns = [f"PC{i+1}" for i in range(50)]
     pca_df = pd.DataFrame(pca_result, columns=pc_columns, index=data_for_pca.index)
 
     # Add Affected_NF for coloring
@@ -353,11 +367,11 @@ def main():
     # Scree plot in the last subplot (axes.flat[5])
     scree_ax = axes.flat[5]
     explained_var = pca.explained_variance_ratio_ * 100  # convert to percentage
-    scree_ax.bar(range(1, 31), explained_var[:30], color="skyblue")
+    scree_ax.bar(range(1, 51), explained_var[:50], color="skyblue")
     scree_ax.set_xlabel("Principal Component", fontweight="bold", fontsize=12)
     scree_ax.set_ylabel("Explained Variance (%)", fontweight="bold", fontsize=12)
-    scree_ax.set_xticks(range(1, 31, 4))  # label every 4th PC
-    scree_ax.set_ylim(0, max(explained_var[:30]) * 1.2)
+    scree_ax.set_xticks(range(1, 51, 4))  # label every 4th PC
+    scree_ax.set_ylim(0, max(explained_var[:50]) * 1.2)
 
     plt.tight_layout()
     plt.savefig(args.output_plot_pdf, dpi=300)
@@ -371,11 +385,11 @@ def main():
     print(f"Saving final normalized data to: {args.output_norm}")
     ccm_tmm_int.to_csv(args.output_norm, sep="\t")
 
-    # pca_df has PC1..PC30 + Affected_NF
-    print(f"Saving PCA data (PC1..PC30) to: {args.output_pca}")
+    # pca_df has PC1..PC50 + Affected_NF
+    print(f"Saving PCA data (PC1..PC50) to: {args.output_pca}")
     pca_df.to_csv(args.output_pca, sep="\t")
 
-    print("Done: TMM + INT normalization, sex assessment, 30-PC PCA, and plots.")
+    print("Done: TMM + INT normalization, sex assessment, 50-PC PCA, and plots.")
 
 if __name__ == "__main__":
     main()

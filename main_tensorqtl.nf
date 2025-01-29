@@ -2,23 +2,17 @@
 
 nextflow.enable.dsl=2
 
-/*
- * A Nextflow pipeline that:
- *  1. Generates combinations of 1 through 30 and every combination of the 23 chromosomes.
- *  2. Creates bed files for each chromosome.
- *  3. Submits TensorQTL jobs for each chromosome and covariate file.
- */
-
 // ---------------------------
 // (A) Define Channels
 // ---------------------------
 
+// Chromosomes
 chroms = Channel
     .fromPath(params.chrom_file)
     .splitText()
     .map { it.trim() }
 
-pcs = Channel.from(1..30)
+pcs = Channel.from(1..50)
 
 // Combine all chromosome / PC 
 chrom_covs = chroms
@@ -115,7 +109,9 @@ process TensorQTLNominal {
               val(plink_prefix)    
 
     output:
-        path "*parquet"
+        tuple path("*parquet"),
+            val(chromosome)
+
 
     script:
         """
@@ -138,12 +134,12 @@ process TensorQTLNominal {
 // ---------------------------
 
 include { analysis_eqtl_saturation } from './modules/analysis_eqtl_saturation.nf'
-include { prepGWAS } from './modules/coloc.nf'
+include { prepGWAS; runColoc } from './modules/coloc.nf'
 
 // Run TensorQTL submission for each chromosome and covariate file
 workflow {
 
-    // Run bedfiles
+    // 1) Make bedfiles
     bed = CreateBedFiles(chroms)
     plink_prefix_ch = bed.plink_prefix
 
@@ -151,7 +147,7 @@ workflow {
     tensorqtl_input_ch = chrom_covs
         .combine(plink_prefix_ch, by: 0)
 
-    // Run tensorQTL by chromosome
+    // 2) Run tensorQTL by chromosome
     TensorQTLSubmission(tensorqtl_input_ch)
 
     // Extract unique path from TensorQTLSubmission
@@ -161,7 +157,7 @@ workflow {
         .collect()
         .set { outi }
     
-    // Extract Best K to run nominal p-value
+    // 3) Extract Best-K to run nominal p-value
     analysis_eqtl_saturation(outi)    
 
     // Extract Best K
@@ -176,10 +172,13 @@ workflow {
         .filter { it[2] == 30 }  // Filter for PC equal to best k
         .set { tensorqtl_input_nom_ch }
 
-    // Run tensorQTL - nominal p-value
+    // 4) Run tensorQTL - nominal p-value
     TensorQTLNominal(tensorqtl_input_nom_ch)
 
-    // Prep GWAS for coloc
-    prepGWAS()
+    // 5) Prep GWAS for coloc
+    prepGWAS_out_ch = prepGWAS()
+
+    // 6) Run coloc analyses
+    runColoc(TensorQTLNominal.out.combine(best_k))
     
 }

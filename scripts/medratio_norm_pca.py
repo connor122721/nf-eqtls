@@ -6,7 +6,7 @@ By: Connor S. Murray
 
   - Performs TMM + inverse normal transform + PCA on RNA-seq data
   - Plots the first 6 PCs + scree plot, colored by Affected_NF
-  - Outputs up to the 30th PC in pca_data.tsv
+  - Outputs up to the 50th PC in pca_data.tsv
   - Assesses biological sex based on XIST and RPS4Y1 expression (ANOVA approach)
   - Removes outliers based on:
       (1) High mean absolute deviation across first 10 PCs, normalized by each PC's MAD
@@ -60,7 +60,7 @@ def process_gene(gene_group, predictors):
 
 def normalize_and_filter(metadata_path, mappability_path, gtf_path, 
                          gene_counts_path, output_normalized, output_pca,
-                         output_outliers):
+                         output_outliers, skip_mappability_filter=True):
     """
     Normalize, filter, and run PCA on RNA-seq gene expression data.
     - Removes ERCC genes and genes not in the GTF or with low mappability *before* normalization.
@@ -94,9 +94,13 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
     # -----------------------------------------------------------
     # (2) Load Mappability and GTF
     # -----------------------------------------------------------
-    print("Loading mappability data...")
-    mapp_df = pd.read_table(mappability_path, names=["gene_id", "mappability"], header=None)
-    low_map_genes = set(mapp_df[mapp_df["mappability"] <= 0.5]["gene_id"])
+    if not skip_mappability_filter:
+        print("Loading mappability data...")
+        mapp_df = pd.read_table(mappability_path, names=["gene_id", "mappability"], header=None)
+        low_map_genes = set(mapp_df[mapp_df["mappability"] <= 0.5]["gene_id"])
+    else:
+        print("Skipping mappability data loading as per user request.")
+        low_map_genes = set()
 
     print("Loading GTF file...")
     gene_gtf = pd.read_csv(gtf_path, delimiter="\t")
@@ -129,7 +133,11 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
 
     ercc_mask = gene_count["gene_id"].str.contains("ERCC", case=False, na=False)
     not_in_gtf_mask = ~gene_count["gene_id"].isin(gtf_genes_simp)
-    low_map_mask = gene_count["gene"].isin(low_map_genes)
+    
+    if not skip_mappability_filter:
+        low_map_mask = gene_count["gene"].isin(low_map_genes)
+    else:
+        low_map_mask = pd.Series([False]*gene_count.shape[0], index=gene_count.index)
 
     combined_mask = ercc_mask | not_in_gtf_mask | low_map_mask
     print("Removing ERCC genes, genes not in GTF, or with low mappability...")
@@ -166,17 +174,16 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
     affected_samples = meta[meta["Affected-NF"] == "Affected"].index
     affected_counts = norm_t.loc[:, affected_samples].copy()
     affected_counts["qc_individual_depth"] = (
-        (affected_counts >= 10).sum(axis=1) / len(affected_samples) * 100
-    )
+        (affected_counts >= 10).sum(axis=1) / len(affected_samples) * 100)
+    
     affected_counts["pass_depth_affected"] = np.where(
-        affected_counts["qc_individual_depth"] > 10, "Pass", "Fail"
-    )
+        affected_counts["qc_individual_depth"] > 10, "Pass", "Fail")
 
     pass_affected_genes = affected_counts[affected_counts["pass_depth_affected"] == "Pass"].index
     filt_norm_t = norm_t[
         (norm_t["pass_depth"] == "Pass") &
-        (norm_t.index.isin(pass_affected_genes))
-    ]
+        (norm_t.index.isin(pass_affected_genes))]
+    
     print(f"Genes passing combined filter: {filt_norm_t.shape[0]}")
 
     # -----------------------------------------------------------
@@ -186,14 +193,13 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
         columns=["qc_individual_depth", "pass_depth"], errors="ignore"
     ).apply(
         lambda x: np.min(x[x > 0]) / 2 if (x > 0).any() else 0,
-        axis=1
-    )
+        axis=1)
     filt_log_t = filt_norm_t.drop(
         columns=["qc_individual_depth", "pass_depth"], errors="ignore"
     ).apply(
         lambda row: np.log10(row.replace(0, half_mins[row.name])),
-        axis=1
-    )
+        axis=1)
+    
     print(f"Final number of genes after zero-replacement/log: {filt_log_t.shape[0]}")
 
     # Keep a 'Name' column for merges
@@ -205,15 +211,15 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
     meta_full.index.name = None
     needed_cols = [
         "Gender", "Sample_container_ID", "Affected_NF",
-        "Race", "Diagnosis", "Primary_biosample_type"
-    ]
+        "Race", "Diagnosis", "Primary_biosample_type"]
+    
     needed_cols = [c for c in needed_cols if c in meta_full.columns]
 
     melted = filt_log_t.melt(
         id_vars=["Name"],
         var_name="sample_id",
-        value_name="norm"
-    )
+        value_name="norm")
+    
     merged_df = melted.join(meta_full[needed_cols], on="sample_id", how="left")
 
     drop_cols = ["norm", "Gender", "Sample_container_ID"]
@@ -252,16 +258,16 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
     data_for_pca = final_log_t.T  # shape => (samples x genes)
     scaler = StandardScaler()
     scaled_data = scaler.fit_transform(data_for_pca)
-    pca = PCA(n_components=30)
+    pca = PCA(n_components=50)
     pca_result = pca.fit_transform(scaled_data)
 
-    pca_df = pd.DataFrame(pca_result, columns=[f"PC{i+1}" for i in range(30)])
+    pca_df = pd.DataFrame(pca_result, columns=[f"PC{i+1}" for i in range(50)])
     pca_df.index = data_for_pca.index  # sample IDs
 
     # Add 'Affected_NF' if available
     if "Affected_NF" in meta_full.columns:
         pca_df["Affected_NF"] = meta_full["Affected_NF"]
-    
+
     # Plot first 6 PCs
     sns.set_style("whitegrid")
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
@@ -282,10 +288,10 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
 
     # Scree plot in the 6th panel
     scree_ax = axes.flatten()[5]
-    scree_ax.bar(range(1,31), pca.explained_variance_ratio_[:30]*100, color='skyblue')
+    scree_ax.bar(range(1,51), pca.explained_variance_ratio_[:50]*100, color='skyblue')
     scree_ax.set_xlabel('Principal Component', weight="bold", size=12)
     scree_ax.set_ylabel('Explained Variance (%)', weight="bold", size=12)
-    scree_ax.set_xticks(range(1,31,4))
+    scree_ax.set_xticks(range(1,51,4))
     plt.tight_layout()
     plt.savefig("pca_medrat_plot.pdf", dpi=300)
     plt.close()
@@ -308,13 +314,13 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
     pca_df["mahal"] = mal_dist
     pca_df["mahal_pval"] = pvals
     pca_df["mahal_padj"] = p_adj
-    
+
     # -----------------------------------------------------------
     # (9c) MAD-based outlier detection on first 10 PCs
     # -----------------------------------------------------------
     ## BEGIN OUTLIER DETECTION ##
     pc10 = pca_df[[f"PC{i}" for i in range(1,11)]].copy()
-    
+
     # For each PC, compute the median & MAD, then normalize each sample's deviation
     for i in range(1, 11):
         pc_col = f"PC{i}"
@@ -326,12 +332,12 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
             pc10[f"{pc_col}_normdev"] = 0.0
         else:
             pc10[f"{pc_col}_normdev"] = (pc10[pc_col] - median_i).abs() / mad_i
-    
+
     # Average normalized deviation across the 10 PCs
     normdev_cols = [f"PC{i}_normdev" for i in range(1,11)]
     pc10["mad_score"] = pc10[normdev_cols].mean(axis=1)
 
-    # Mark samples with mean normalized deviation >= 7
+    # Mark samples with mean normalized deviation >= 3
     pca_df["mad_score"] = pc10["mad_score"]
     pca_df["mad_outlier"] = pca_df["mad_score"] >= 3
 
@@ -383,13 +389,20 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
 def main():
     parser = argparse.ArgumentParser(description="Normalize, filter, and perform PCA on RNA-seq data.")
     parser.add_argument("--metadata", required=True, help="Path to the metadata file.")
-    parser.add_argument("--mappability", required=True, help="Path to the mappability file.")
+    parser.add_argument("--mappability", required=False, help="Path to the mappability file.")
     parser.add_argument("--gtf", required=True, help="Path to the GTF file.")
     parser.add_argument("--gene_counts", required=True, help="Path to the gene counts file.")
     parser.add_argument("--output_normalized", required=True, help="Path to save final normalized counts.")
     parser.add_argument("--output_pca", required=True, help="Path to save PCA table.")
     parser.add_argument("--output_outliers", required=True, help="Path to save outlier individuals.")
+    # --- Added: Skip Mappability Filter Flag ---
+    parser.add_argument("--skip_mappability_filter", action="store_true",
+                        help="Flag to skip the low-mappability gene filtering step.")
     args = parser.parse_args()
+
+    # --- Argument Validation ---
+    if not args.skip_mappability_filter and not args.mappability:
+        parser.error("--mappability is required unless --skip_mappability_filter is set.")
 
     normalize_and_filter(
         metadata_path=args.metadata,
@@ -398,7 +411,8 @@ def main():
         gene_counts_path=args.gene_counts,
         output_normalized=args.output_normalized,
         output_pca=args.output_pca,
-        output_outliers=args.output_outliers)
+        output_outliers=args.output_outliers,
+        skip_mappability_filter=args.skip_mappability_filter) 
 
 if __name__ == "__main__":
     main()

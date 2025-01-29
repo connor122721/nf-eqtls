@@ -8,11 +8,13 @@ library(data.table)
 library(coloc)
 library(tidyverse)
 library(foreach)
+library(argparse)
 
 # Argument parser
 parser <- ArgumentParser()
 parser$add_argument("--gwas", required=TRUE, help="Processed GWAS summary statistics.")
 parser$add_argument("--eqtl", required=TRUE, help="cis-eQTL statistics.")
+parser$add_argument("--shortList", required=TRUE, help="Extracts candidate SNPs/eGenes to test for colocalization from first cis eqtl-tensorQTL run.")
 parser$add_argument("--chromosome", required=TRUE, help="Current chromosome.")
 parser$add_argument("--N_gwas", required=TRUE, help="Samples in GWAS.")
 parser$add_argument("--N_eqtl", required=TRUE, help="Samples in eQTL study.")
@@ -21,17 +23,19 @@ args <- parser$parse_args()
 
 gwas_input <- args$gwas
 eqtl_inpt <- args$eqtl
-
-
-gwas_input="data/processed_GWAS/processed_levin22_gwas_HF_chr13.rds"
-eqtl_inpt="nextflow_dna/output/tensorqtl_nominal/topchef_chr13_MaxPC30.cis_qtl_pairs.chr13.parquet"
+shortlist <- unlist(fread(args$shortList) %>% 
+                      filter(pval_perm < 0.05) %>% 
+                      select(variant_id))
+chromosome <- args$chromosome
+N_gwas <- as.numeric(args$N_gwas)
+N_eqtl <- as.numeric(args$N_eqtl)
 
 ### Datasets & Setup ###
 
 # By chromosome coloc
 coloc_chrom <- function(chr) {
   
-  # Start on chromosome: chr="chr6"
+  # Start on chromosome: chr="chr13"
   chromi=chr
   print(chromi)
 
@@ -85,7 +89,7 @@ coloc_chrom <- function(chr) {
   
   # Window size coloc function between Levin and eQTL datasets
   colocWindow <- function(dt1, N1=N_eqtl, dt2, N2=N_gwas, focalSNP, window=1e6) {
-    # dt1=qtl; dt2=lewin; focalSNP="chr6:79027389[b37]"; window=1000000; N1=502; N2=1665481
+    # dt1=qtl; dt2=gwas; focalSNP="chr13:19679331"; window=1000000; N1=516; N2=1665481
   
     # Get focal SNP information
     pos = as.numeric(tstrsplit(focalSNP, ":")[[2]])
@@ -139,7 +143,7 @@ coloc_chrom <- function(chr) {
   }
   
   # Run coloc analysis with error handling
-  coloc_results <- map(snps$V1, possibly(function(snp) {
+  coloc_results <- map(shortlist, possibly(function(snp) {
     colocWindow(dt1 = qtl, 
                 dt2 = gwas, 
                 focalSNP = snp)}, otherwise = NULL))
