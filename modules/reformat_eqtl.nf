@@ -47,7 +47,5 @@ process reformat_eqtl {
         # Sort bed file
         sort -k1,1 -k2,2n filt_rnaseq_norm_topchef_unrelated.bed > \\
             filt_rnaseq_norm_topchef_unrelated.sort.bed
-
-        echo "Finish"
         """
 }

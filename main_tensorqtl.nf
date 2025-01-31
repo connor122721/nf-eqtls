@@ -12,6 +12,7 @@ chroms = Channel
     .splitText()
     .map { it.trim() }
 
+// Number of RNA PCs to test
 pcs = Channel.from(1..50)
 
 // Combine all chromosome / PC 
@@ -35,7 +36,7 @@ process CreateBedFiles {
 
     output:
         tuple val(chromosome),
-            path("${chromosome}*.bed"), 
+            path("${chromosome}*"), 
             val("${chromosome}_1.17.25.TOPchef"), emit: plink_prefix
 
     script:
@@ -56,6 +57,9 @@ process CreateBedFiles {
             --output-chr chrM \\
             --allow-extra-chr \\
             --out ${chromosome}_1.17.25.TOPchef
+        
+        # Get rid of intermediary log
+        rm *TOPchef.log
         """
 }
 
@@ -134,7 +138,14 @@ process TensorQTLNominal {
 // ---------------------------
 
 include { analysis_eqtl_saturation } from './modules/analysis_eqtl_saturation.nf'
-include { prepGWAS; runColoc } from './modules/coloc.nf'
+include { prepGWAS as prepGWAS_levin } from './modules/coloc.nf'
+include { prepGWAS as prepGWAS_shah } from './modules/coloc.nf'
+include { prepGWAS as prepGWAS_jurgens } from './modules/coloc.nf'
+include { runColoc as runColoc_levin } from './modules/coloc.nf'
+include { runColoc as runColoc_shah } from './modules/coloc.nf'
+include { runColoc as runColoc_jurgens } from './modules/coloc.nf'
+include { analysisColoc } from './modules/coloc.nf'
+//include { LD_CandidateGenes } from './modules/ld.nf'
 
 // Run TensorQTL submission for each chromosome and covariate file
 workflow {
@@ -163,22 +174,70 @@ workflow {
     // Extract Best K
     analysis_eqtl_saturation.out.bestK
         .splitText()
-        .toFloat()
         .set { best_k }
     
     // Run tensorQTL - nominal p-value
     chrom_covs
         .combine(plink_prefix_ch, by: 0)
-        .filter { it[2] == 30 }  // Filter for PC equal to best k
+        .filter { it[2] == 49 }  // Filter for PC equal to best k
         .set { tensorqtl_input_nom_ch }
 
     // 4) Run tensorQTL - nominal p-value
     TensorQTLNominal(tensorqtl_input_nom_ch)
 
     // 5) Prep GWAS for coloc
-    prepGWAS_out_ch = prepGWAS()
+    prepGWAS_out_levin = prepGWAS_levin(params.gwas_levin,
+                                    "levin22_gwas_HF",
+                                    false)
+
+    prepGWAS_out_shah = prepGWAS_shah(params.gwas_shah,
+                                    "shah20_gwas_HF",
+                                    false)
+
+    prepGWAS_out_jurgens = prepGWAS_jurgens(params.gwas_jurgens,
+                                    "jurgens24_gwas_HF",
+                                    true)
 
     // 6) Run coloc analyses
-    runColoc(TensorQTLNominal.out.combine(best_k))
+    N_levin = Channel.of(1665481, 516).toList()
+    N_shah = Channel.of(977323, 516).toList()
+    N_jurgens = Channel.of(955733, 516).toList()
     
+    // Run 6a
+    colocLevin = runColoc_levin(TensorQTLNominal.out
+                   .combine(best_k)
+                   .combine(prepGWAS_out_levin.prefix)
+                   .combine(N_levin))
+
+    // Run 6b
+    colocShah = runColoc_shah(TensorQTLNominal.out
+                  .combine(best_k)
+                  .combine(prepGWAS_out_shah.prefix)
+                  .combine(N_shah))
+
+    // Run 6c
+    colocJurgens = runColoc_jurgens(TensorQTLNominal.out
+                  .combine(best_k)
+                  .combine(prepGWAS_out_jurgens.prefix)
+                  .combine(N_jurgens))
+
+    // 7) Get candidate eGenes that are colocalized and prep for LD analysis
+    wd1 = colocLevin.outDir.unique().collect()
+    wd2 = colocShah.outDir.unique().collect()
+    wd3 = colocJurgens.outDir.unique().collect()
+ 
+    ColocGenes = analysisColoc(wd1.join(wd2).join(wd3).unique())
+
+    // X) Get LD matrix for candidate genes
+    def vcf = file("params.out/freeze.10b.pass_only.snps_indels50_mac1.phased.TOPchef.vcf.gz")
+    genes = ColocGenes.candidate_genes.splitText().toList()
+
+    genes.view()
+
+    //inputLD = vcf.merge(genes)
+
+    //inputLD.view()
+
+    //LD_CandidateGenes()
+
 }

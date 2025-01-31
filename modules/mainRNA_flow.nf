@@ -19,24 +19,29 @@ process normalize_and_pca {
         path gene_count_file
 
     output:
-        file "norm_medrat.tsv"
-        file "pca_medrat.tsv"
-        file "pca_medrat_plot.pdf"
+        path "norm_medrat.tsv"
+        path "pca_medrat.tsv"
+        path "pca_medrat_plot.pdf"
         path "${params.rna_outliers}", emit: rna_outliers
+        path "medratio.log"
 
     script:
         """
         module load miniforge/24.3.0-py3.11
         source activate base
-        
+
+        # Run script        
         python ${params.scripts_dir}/medratio_norm_pca.py \\
             --metadata ${meta_file} \\
-            --skip_mappability_filter \\
             --gtf ${gtf_file} \\
             --gene_counts ${gene_count_file} \\
+            --mappability ${mapp_file} \\
             --output_normalized norm_medrat.tsv \\
             --output_pca pca_medrat.tsv \\
             --output_outliers ${params.rna_outliers}
+        # --skip_mappability_filter 
+
+        cp .command.log medratio.log
         """
 }
 
@@ -55,19 +60,21 @@ process tmm_pipeline {
     output:
         path "norm_tmm.tsv", emit: norm_gene_count
         path "pca_tmm.tsv", emit: pca_tmm
-        file "pca_tmm.pdf"
-        file "sex_assessment_plot.pdf"
+        path "pca_tmm.pdf"
+        path "sex_assessment_plot.pdf"
+        path "tmm.log"
 
     script:
         """
         module load miniforge/24.3.0-py3.11
         source activate base
-
+        
+        # Run script
         python ${params.scripts_dir}/tmm_norm_pca_sex.py \\
             --metadata ${meta_file} \\
             --gene_counts ${gene_count_file} \\
             --gtf ${gtf_file} \\
-            --skip_mappability_filter \\
+            --mappability ${mapp_file} \\
             --output_norm norm_tmm.tsv \\
             --output_pca pca_tmm.tsv \\
             --output_plot_pdf pca_tmm.pdf \\
@@ -77,6 +84,9 @@ process tmm_pipeline {
             --low_expression_threshold 0.1 \\
             --sample_expression_frac 0.2 \\
             --affected_expression_frac 0.2
-            # --exclude_unclear_sex   # Uncomment if you want to exclude samples with unclear sex
+            # --exclude_unclear_sex # Include if you want to filter samples with unclear sex.
+            # --skip_mappability_filter # Include if you want to implement mappability filtration.
+        
+        cp .command.log tmm.log
         """
 }

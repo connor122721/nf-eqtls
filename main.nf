@@ -203,14 +203,14 @@ workflow {
     // 10) SNP-based PCA and plotting.
     def pca = SNP_PCA(gds, plotKingOut.related_individuals)
 
-    // 11) Normalize RNA counts
+    // 11) Normalize RNA counts - drops samples.
     def norm_qc = normalize_and_pca(
         file(params.metadata), 
         file(params.mapp_file),
         form_gtf.gtf,
         file(params.gene_count_file))
 
-    // 12) PCA on normalized RNA counts
+    // 12) PCA on normalized RNA counts - drops genes.
     def pca_tmm = tmm_pipeline(
         file(params.metadata), 
         file(params.mapp_file), 

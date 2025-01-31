@@ -256,9 +256,12 @@ def main():
     print("Loading GTF file...")
     gtf_df = pd.read_csv(args.gtf, delimiter="\t", header=None,
                          names=["chrom", "start", "end", "gene_id"])
-    gtf_ids = set(gtf_df["gene_id"].astype(str))
-    gene_in_gtf = ccm_filtered.index.isin(gtf_ids)
+    gtf_ids = gtf_df["gene_id"].astype(str).replace(r"\..*", "", regex=True)
+    #gtf_ids = set(gtf_df["gene_id"].astype(str))
+    ccm_filtered["gene_id"] = ccm_filtered.index.str.replace(r"\..*", "", regex=True)
+    gene_in_gtf = ccm_filtered["gene_id"].isin(gtf_ids)
     ccm_in_gtf = ccm_filtered[gene_in_gtf]
+    ccm_in_gtf = ccm_in_gtf.drop(['gene_id'], axis=1)
     print(f"Genes after GTF filter: {ccm_in_gtf.shape[0]} (out of {ccm_filtered.shape[0]})")
 
     # -------------------------------------------------------------------
