@@ -12,6 +12,8 @@ output_test_new/
 output/
 work/
 future/
+*pdf
+*png
 
 # Ignore specific scripts directory checkpoints
 scripts/.ipynb_checkpoints
