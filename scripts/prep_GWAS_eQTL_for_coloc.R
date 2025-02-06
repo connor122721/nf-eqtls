@@ -13,13 +13,13 @@ library(argparse)
 parser <- ArgumentParser()
 parser$add_argument("--gwas", required=TRUE, help="GWAS summary statistics.")
 parser$add_argument("--prefix", required=TRUE, help="Prefix of output files.")
-parser$add_argument("--skip_liftover", help="Statment to skip liftover from hg19 -> hg38.")
+parser$add_argument("--liftover", help="Statment to liftover from hg19 -> hg38.")
 args <- parser$parse_args()
 
 gwas_input <- fread(args$gwas, header=T)
 output_pre <- args$prefix
 # gwas_input=fread("../data/HF-multiancestry-maf0.01.tsv.gz", header=T)
-# gwas_input=fread("../../../../data/DCM_GWAS/Jurgens_DCM_GWAS_META_BiobanksOnly.tsv.gz")
+# gwas_input=fread("../data/DCM_GWAS/Jurgens_DCM_GWAS_META_BiobanksOnly.tsv.gz")
 
 ### Datasets & Setup ###
 
@@ -46,15 +46,17 @@ colnames(gwas_input) <- newcols$new
 gwas <- data.table(gwas_input %>% 
               mutate(snpID=paste("chr", chromosome, ":", pos, sep=""),
                      maf=case_when(af > 0.5 ~ 1 - af,
-                                   TRUE ~ af)))
+                                   TRUE ~ af),
+                     chromosome=paste("chr", chromosome, sep="")))
                                   
 print("Finished standardizing columns")
 
-# Check if liftover should be skipped
-if (is.null(args$skip_liftover)) {
+# Check if liftover should be processed
+if (args$liftover == TRUE) {
 
   # LiftOver
   library(rtracklayer)
+  print("Processing LiftOver!")
 
   # Download liftover files
   # wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHg19.over.chain.gz
@@ -64,7 +66,7 @@ if (is.null(args$skip_liftover)) {
   chain <- import.chain("/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/hg19ToHg38.over.chain")
 
   # Convert to GRanges
-  gr <- GRanges(seqnames = paste("chr", gwas$chromosome, sep=""),
+  gr <- GRanges(seqnames = gwas$chromosome,
                 ranges = IRanges(start = gwas$pos, 
                                  end = gwas$pos))
 
@@ -85,6 +87,9 @@ if (is.null(args$skip_liftover)) {
   gwas[, snpID_hg38 := paste0(chr_hg38, ":", pos_hg38)]
   uniqChrom=na.omit(unique(gwas$chr_hg38))
 } else {
+  
+  print("Skipping LiftOver!")
+  
   gwas[, chr_hg38 := chromosome]
   gwas[, pos_hg38 := pos]
   gwas[, snpID_hg38 := snpID]

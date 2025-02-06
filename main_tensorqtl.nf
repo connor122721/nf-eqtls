@@ -188,15 +188,15 @@ workflow {
     // 5) Prep GWAS for coloc
     prepGWAS_out_levin = prepGWAS_levin(params.gwas_levin,
                                     "levin22_gwas_HF",
-                                    false)
+                                    "TRUE")
 
     prepGWAS_out_shah = prepGWAS_shah(params.gwas_shah,
                                     "shah20_gwas_HF",
-                                    false)
+                                    "TRUE")
 
     prepGWAS_out_jurgens = prepGWAS_jurgens(params.gwas_jurgens,
                                     "jurgens24_gwas_HF",
-                                    true)
+                                    "FALSE")
 
     // 6) Run coloc analyses
     N_levin = Channel.of(1665481, 516).toList()
@@ -232,7 +232,7 @@ workflow {
     def vcf = file("params.out/freeze.10b.pass_only.snps_indels50_mac1.phased.TOPchef.vcf.gz")
     genes = ColocGenes.candidate_genes.splitText().toList()
 
-    genes.view()
+    //genes.view()
 
     //inputLD = vcf.merge(genes)
 

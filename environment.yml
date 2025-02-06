@@ -1,0 +1,21 @@
+name: nf_topchef
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - statsmodels
+  - r-base=4.3.1
+  - r-optparse
+  - r-data.table
+  - r-ggplot2
+  - r-dplyr
+  - r-tidyr
+  - r-readr
+  - r-stringr
+  - r-rcpp

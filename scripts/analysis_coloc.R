@@ -18,8 +18,11 @@ args <- parser$parse_args()
 
 ### Datasets & Setup ###
 
+#wd="/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/output/coloc/"
+
 # Coloc files
 coloc <- list.files(path = args$wd, pattern = ".txt", full.names = T)
+# coloc <- list.files(path = wd, pattern = ".txt", full.names = T)
 coloc <- coloc[!coloc%like%"chrX"]
 coloc <- coloc[coloc%like%"_gwas_HF_"]
 
@@ -49,12 +52,13 @@ threshold <- 0.8
 # Identify significant genes for each GWAS and retain PP.H4 scores or set to NA
 dt.co[, `:=`(
   Levin2022 = ifelse(levin22_gwas_HF > threshold, levin22_gwas_HF, NA),
-  Shah2020 = ifelse(shah20_gwas_HF > threshold, shah20_gwas_HF, NA))]
+  Shah2020 = ifelse(shah20_gwas_HF > threshold, shah20_gwas_HF, NA),
+  Jurgens2024 = ifelse(jurgens24_gwas_HF > threshold, jurgens24_gwas_HF, NA))]
 
 # Pivot the data to long format for plotting
 b <- data.frame(dt.co %>% 
-                  select(common_gene, Levin2022, Shah2020) %>%
-                  pivot_longer(cols = c(Levin2022, Shah2020),
+                  select(common_gene, Levin2022, Shah2020, Jurgens2024) %>%
+                  pivot_longer(cols = c(Levin2022, Shah2020, Jurgens2024),
                                names_to = "GWAS",
                                values_to = "PP.H4"))
 
@@ -96,7 +100,7 @@ plot1 <- {
 }
 
 # Save output image
-ggsave(plot = plot1, filename = "coloc_genes.pdf", dpi = 300, width = 13, height = 7)
+ggsave(plot = plot1, filename = "coloc_genes.pdf", dpi = 300, width = 16, height = 7)
 
 # Output results
 write_delim(candy, file = "coloc_eqtl_candidates_full.txt", delim = "\t")

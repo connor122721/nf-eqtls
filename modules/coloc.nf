@@ -14,7 +14,7 @@ process prepGWAS {
     input:
         path(gwas)
         val(prefix)
-        val(skip_liftover)
+        val(liftover)
 
     output:
         path("processed*")
@@ -28,7 +28,7 @@ process prepGWAS {
         Rscript ${params.scripts_dir}/prep_GWAS_eQTL_for_coloc.R \\
             --gwas ${gwas} \\
             --prefix ${prefix} \\
-            --skip_liftover ${skip_liftover}
+            --liftover ${liftover}
         """
 }
 
@@ -69,6 +69,8 @@ process runColoc {
             --N_gwas ${N_gwas} \\
             --N_eqtl ${N_eqtl} \\
             --prefix ${gwas_pre}
+
+        echo "Finish!"
         """
 }
 

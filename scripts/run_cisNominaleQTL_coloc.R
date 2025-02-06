@@ -31,12 +31,13 @@ N_gwas <- as.numeric(args$N_gwas)
 N_eqtl <- as.numeric(args$N_eqtl)
 output_pre <- args$prefix
 
-#gwas_input="output/gwas/processed_levin22_gwas_HF_chr10.rds"
-#eqtl_inpt="output/tensorqtl_nominal/topchef_chr10_MaxPC49.cis_qtl_pairs.chr10.parquet"
-#shortlist="output/tensorqtl/topchef_chr10_MaxPC49.cis_qtl.txt.gz"
-#N_gwas=1665481
-#N_eqtl=516
-#chromosome="chr10"
+# setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/")
+# gwas_input="output/gwas/processed_levin22_gwas_HF_chr10.rds"
+# eqtl_inpt="output/tensorqtl_nominal/topchef_chr10_MaxPC49.cis_qtl_pairs.chr10.parquet"
+# shortlist="output/tensorqtl/topchef_chr10_MaxPC49.cis_qtl.txt.gz"
+# N_gwas=1665481
+# N_eqtl=516
+# chromosome="chr10"
 
 ### Datasets & Setup ###
 
