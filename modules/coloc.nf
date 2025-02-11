@@ -69,8 +69,6 @@ process runColoc {
             --N_gwas ${N_gwas} \\
             --N_eqtl ${N_eqtl} \\
             --prefix ${gwas_pre}
-
-        echo "Finish!"
         """
 }
 

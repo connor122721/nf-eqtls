@@ -8,7 +8,7 @@ process LD_CandidateGenes {
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/linkage", mode: 'copy'
     threads = 1
-    memory = '1 GB'
+    memory = '15 GB'
 
     input:
         tuple path(input_vcf),
@@ -18,7 +18,8 @@ process LD_CandidateGenes {
             val(gene)
 
     output:
-        path("topchef_${chrom}_${gene}_${start}_${end}*ld")
+        path("topchef_${chrom}_${gene}_${start}_${end}*ld.gz")
+        path("topchef_${chrom}_${gene}_${start}_${end}.snp_names.txt")
         tuple val(chrom), 
             val(gene), emit: gene_combo
   
@@ -43,24 +44,41 @@ process LD_CandidateGenes {
         ${params.out}/${input_vcf} \\
         -S \${samples} \\
         -Oz -o \${temp_vcf}
-        
-        tabix -p vcf \${temp_vcf}
 
-        # Generate the input file in plink format
+        tabix -p vcf \${temp_vcf}
+        output_prefix="topchef_${chrom}_${gene}_${start}_${end}"
+
+        # First, convert the VCF to PLINK binary format (BED/BIM/FAM) using your filters.
         plink \\
             --memory 18000 \\
             --vcf \${temp_vcf} \\
-            --r2 \\
-            --ld-window 1000 \\
-            --ld-window-r2 0.01 \\
             --geno 0.999 \\
-            --maf 0.01 \\
+            --maf 0.005 \\
             --double-id \\
             --keep-allele-order \\
-            --out "topchef_${chrom}_${gene}_${start}_${end}" \\
             --allow-extra-chr \\
-            --list-duplicate-vars suppress-first
-        
+            --list-duplicate-vars suppress-first \\
+            --make-bed \\
+            --out \${output_prefix}
+
+        # Now, use the binary file (BED) to generate the r-square matrix.
+        plink \\
+            --memory 18000 \\
+            --bfile \${output_prefix} \\
+            --r square \\
+            --geno 0.999 \\
+            --maf 0.005 \\
+            --keep-allele-order \\
+            --double-id \\
+            --list-duplicate-vars suppress-first \\
+            --allow-extra-chr \\
+            --out \${output_prefix}
+
+        # Compress the LD file
+        gzip topchef_${chrom}_${gene}_${start}_${end}.ld
+        cut -f4 topchef_${chrom}_${gene}_${start}_${end}.bim > \\
+            topchef_${chrom}_${gene}_${start}_${end}.snp_names.txt
+
         # Clean up
         rm \${temp_vcf}*
         """
@@ -72,7 +90,7 @@ process plotLocusCompare {
     // Publish the output to the specified directory
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/coloc_locusPlot", mode: 'copy'
-    memory = '10 GB'
+    memory = '20 GB'
 
     input:
         tuple val(chrom),
@@ -93,10 +111,7 @@ process plotLocusCompare {
             --eqtl ${eqtl} \\
             --chromosome ${chrom} \\
             --gene ${gene}
-
         """
-
-
 }
 
 // Run TensorQTL submission for each chromosome and covariate file
@@ -117,11 +132,9 @@ workflow {
 
     // Collect chromosome and gene output
     ld_chrom_gene = ld.gene_combo
-
-    //ld_chrom_gene.view()
-
+    
     // Define GWAS and eQTL inputs
-    gwas_list = Channel.from(["shah20_gwas_HF", "levin22_hf_gwas", "jurgens24_hf_gwas"])
+    gwas_list = Channel.from(["shah20_gwas_HF", "levin22_gwas_HF", "jurgens24_gwas_HF"])
     eqtl_input = Channel.from("MaxPC49")
     chrom_list = Channel.from(1..22).map { "chr${it}" }
 

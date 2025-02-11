@@ -1,5 +1,5 @@
 # Connor Murray
-# Started 12.2.2024
+# Started 12.2.2024; modifed 2.10.2025
 # analyzing TOPchef eQTLs colocalization
 # module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1; R
 
@@ -36,24 +36,26 @@ dt1 <- rbindlist(lapply(coloc, function(t) {fread(t, header = T)})) %>%
             by=c("gene"="gene_edit","chrom"))
 
 # Candidate colocalized genes !
-candy <- dt1[PP.H4 >= 0.5]
+candy <- dt1
 
 ### Plot ###
 
 # Transform the data to wide format with PP.H4 scores
 dt.co <- data.table(candy %>% 
-                      select(common_gene, gwas, PP.H4) %>% 
+                      dplyr::select(common_gene, gwas_pre, PP.H4) %>% 
+                      distinct() %>%
                       pivot_wider(values_from = PP.H4, 
-                                  names_from = gwas))
+                                  names_from = gwas_pre,
+                                  values_fn = list(PP.H4 = mean)))
 
 # Define the significance threshold
 threshold <- 0.8
 
 # Identify significant genes for each GWAS and retain PP.H4 scores or set to NA
 dt.co[, `:=`(
-  Levin2022 = ifelse(levin22_gwas_HF > threshold, levin22_gwas_HF, NA),
-  Shah2020 = ifelse(shah20_gwas_HF > threshold, shah20_gwas_HF, NA),
-  Jurgens2024 = ifelse(jurgens24_gwas_HF > threshold, jurgens24_gwas_HF, NA))]
+  Levin2022 = ifelse(levin22_gwas_HF >= threshold, levin22_gwas_HF, NA),
+  Shah2020 = ifelse(shah20_gwas_HF >= threshold, shah20_gwas_HF, NA),
+  Jurgens2024 = ifelse(jurgens24_gwas_HF >= threshold, jurgens24_gwas_HF, NA))]
 
 # Pivot the data to long format for plotting
 b <- data.frame(dt.co %>% 

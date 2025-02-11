@@ -16,23 +16,23 @@ gtf <- data.table(readRDS("genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.
 
 # Read in cand gene list
 cand <- fread("data/ClinGen_DCM_ARVC_GeneIDs.txt") %>% 
-  left_join(gtf, by=c("common_gene"))
+  left_join(gtf, by=c("common_gene")) %>% 
+  select(c(chrom, common_gene, start, stop, gene_edit, class, evidence))
+
+cand2 <- fread("nextflow_dna/output/coloc/coloc_eqtl_candidates_full.txt") %>% 
+  filter(PP.H4 >= 0.5) %>% 
+  left_join(gtf, by=c("common_gene", "start", "stop", "chrom")) %>% 
+  select(chrom, common_gene, start, stop, gene_edit)
+
+# Rbind
+cand.fin <- data.table(rbind(cand, cand2, fill=T))
 
 # Make LD parameter list
-dist = 1000000
-cand.dt <- cand %>% 
+dist = 1e6
+cand.dt <- cand.fin %>% 
   mutate(startLD = start-dist,
          stopLD = stop+dist)
 
 # Output
-fin <- cand.dt %>% select(gene_edit, common_gene, chrom, startLD, stopLD)
-#write_delim(fin, file = "data/candgenes.ldlist.txt", delim = "\t")
-
-colo = list.files("nextflow_dna/output/coloc", pattern = "gwas_HF", full.names = T)
-colo = colo[!colo %like% "chrX"]
-coloc = rbindlist(lapply(colo, fread))
-
-coloc[gene %in% fin$gene_edit]
-coloc[gene %in% fin$gene_edit][PP.H4 > 0.8]
-
-
+fin <- cand.dt %>% select(gene_edit, common_gene, chrom, startLD, stopLD, evidence)
+write_delim(fin, file = "data/candgenes.ldlist.txt", delim = "\t")
