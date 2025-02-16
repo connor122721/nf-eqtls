@@ -1,8 +1,11 @@
 # QC Pipeline of DNA- and RNA-seq for use in cis-eQTL mapping
 
-![Nextflow](https://img.shields.io/badge/Nextflow-DSL2-brightgreen)
-![License: MIT](https://img.shields.io/badge/License-MIT-blue)
-![Profile: Slurm](https://img.shields.io/badge/Profile-Slurm-orange)
+![Nextflow](https://img.shields.io/badge/Nextflow-DSL2-brightgreen?style=for-the-badge)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+![Profile: Slurm](https://img.shields.io/badge/Profile-Slurm-orange?style=for-the-badge)
+![Repo Size](https://img.shields.io/github/repo-size/connor122721/nf_eqtls?style=for-the-badge)
+![# Languages](https://img.shields.io/github/languages/count/connor122721/nf_eqtls?style=for-the-badge)
+![Top Language](https://img.shields.io/github/languages/top/connor122721/nf_eqtls?style=for-the-badge)
 
 This repository contains a Nextflow DSL2 pipeline for DNA QC, RNA QC, kinship analysis, and reformatting for use in TensorQTL eQTL mapping. The pipeline performs various steps including extracting and indexing VCF files, calculating linkage disequilibrium, thinning VCF files, and conducting PCA analyses.
 
