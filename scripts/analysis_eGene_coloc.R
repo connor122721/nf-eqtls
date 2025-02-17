@@ -81,35 +81,62 @@ ld.file <- list.files(path = "/standard/vol185/cphg_Manichaikul/users/csm6hg/nex
 readLD_process <- function(ldFile) {
   
   # Read in LD file: ldFile=ld.file
-  ld <- data.table(fread(input = ldFile, header = T) %>% 
-                     mutate(SNPA = paste("chr", CHR_A, ":", BP_A, sep=""),
-                            SNPB = paste("chr", CHR_B, ":", BP_B, sep="")) %>% 
-                     filter(SNPA %in% dt$variant_id & SNPB %in% dt$variant_id) %>% 
-                     mutate(R = sqrt(R2)) %>% 
-                     select(SNPA, SNPB, R, R2))
+  if (length(ldFile) > 1) {
+    ldFile <- ldFile[grepl("ld\\.gz$", ldFile)]
+    if (length(ldFile) == 0) {
+      stop("No gzipped LD file (ld.gz) found among the provided files!")
+    }
+    ldFile <- ldFile[1]  # if multiple, take the first one
+  }
   
-  # Get all unique SNPs
-  snp_list <- unique(c(ld$SNPA, ld$SNPB))
-  snp_list <- sort(snp_list) # Sort for consistency
+  snp_names <- fread(ld.file[ld.file %like% "snp_names.txt"], header = FALSE)
   
-  # Create an empty matrix
-  n_snps <- length(snp_list)
-  ld_matrix <- matrix(0, nrow = n_snps, ncol = n_snps,
-                      dimnames = list(snp_list, snp_list))
+  # Read in the LD matrix (fread can handle gzipped files)
+  ld <- as.matrix(fread(ldFile, header = FALSE))
   
-  # Create a mapping of SNP names to matrix indices for fast assignment
-  snp_indices <- setNames(seq_along(snp_list), snp_list)
+  # Create SNP IDs in the format "chr:position" from the snp_names file
+  snp_ids <- paste(chromosome, snp_names$V1, sep = ":")
+  rownames(ld) <- snp_ids
+  colnames(ld) <- snp_ids
   
-  # Assign R values to the matrix using indices
-  ld_matrix[cbind(snp_indices[ld$SNPA], snp_indices[ld$SNPB])] <- ld$R2
-  ld_matrix[cbind(snp_indices[ld$SNPB], snp_indices[ld$SNPA])] <- ld$R2
+  # Ensure the LD matrix is symmetric
+  if (!isSymmetric(ld)) {
+    cat("LD matrix is not symmetric; enforcing symmetry by averaging the lower and upper triangles.\n")
+    ld <- (ld + t(ld)) / 2
+  }
   
-  # Set diagonal values to 1
-  diag(ld_matrix) <- 1
+  # Identify common variants between the LD matrix and dt_window
+  common_vars <- intersect(rownames(ld), dt[common_gene==genei]$variant_id)
+  if (length(common_vars) == 0) {
+    stop("No common variants found between LD matrix and dt_window!")
+  } else {
+    cat("Number of common variants found:", length(common_vars), "\n")
+  }
+  
+  # Subset the LD matrix to only include the common variants (and enforce dropping any extra rows/columns)
+  ld <- ld[common_vars, common_vars, drop = FALSE]
+  
+  # Check that the diagonal of the LD matrix has no NAs (should be 1 for a correlation matrix)
+  if (any(is.na(diag(ld)))) {
+    cat("Found NA values in the diagonal of the LD matrix. Replacing NA values with 1.\n")
+    diag(ld)[is.na(diag(ld))] <- 1
+  }
+  
+  cat("Number of variants after dropping NA rows/columns:", length(common_vars), "\n")
+  
+  # (Optional) Verify that the LD matrix is still symmetric and the diagonal is correct.
+  if (!isSymmetric(ld)) {
+    stop("LD matrix is not symmetric after subsetting!")
+  }
+  if (!all(diag(ld) == 1)) {
+    cat("Warning: Diagonal values of the LD matrix are not all 1. Inspecting...\n")
+    print(diag(ld))
+  }
   
   # Convert the LD matrix to a data.table
-  ld_dt <- as.data.table(as.table(ld_matrix))
-  setnames(ld_dt, c("V1", "V2", "N"), c("SNPA", "SNPB", "R2"))
+  ld_dt <- as.data.table(as.table(ld))
+  setnames(ld_dt, c("V1", "V2", "N"), c("SNPA", "SNPB", "R"))
+  ld_dt <- ld_dt %>% mutate(R2=R^2)
 
   # Finish
   return(ld_dt)

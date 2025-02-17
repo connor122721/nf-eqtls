@@ -231,16 +231,4 @@ workflow {
  
     ColocGenes = analysisColoc(wd1.join(wd2).join(wd3).unique())
 
-    // X) Get LD matrix for candidate genes
-    def vcf = file("params.out/freeze.10b.pass_only.snps_indels50_mac1.phased.TOPchef.vcf.gz")
-    genes = ColocGenes.candidate_genes.splitText().toList()
-
-    //genes.view()
-
-    //inputLD = vcf.merge(genes)
-
-    //inputLD.view()
-
-    //LD_CandidateGenes()
-
 }

@@ -8,7 +8,8 @@ process LD_CandidateGenes {
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/linkage", mode: 'copy'
     threads = 1
-    memory = '15 GB'
+    errorStrategy = 'retry'
+    memory = '20 GB'
 
     input:
         tuple path(input_vcf),
@@ -90,6 +91,7 @@ process plotLocusCompare {
     // Publish the output to the specified directory
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/coloc_locusPlot", mode: 'copy'
+    errorStrategy = 'ignore'
     memory = '20 GB'
 
     input:
@@ -144,7 +146,7 @@ workflow {
         .combine(ld_chrom_gene, by:0)
         .combine(eqtl_input)
         .set { combined_input }
-    
+
     // Make locuscompare plots
     plotLocusCompare(combined_input)
 

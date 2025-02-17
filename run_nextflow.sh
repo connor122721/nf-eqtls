@@ -18,4 +18,5 @@ cd /standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna
 
 # Run nextflow
 # nextflow run modules/ld.nf -profile slurm -resume
-nextflow run main_tensorqtl.nf -profile slurm -resume
+# nextflow run main_tensorqtl.nf -profile slurm -resume
+nextflow run modules/susie.nf -profile slurm -resume
