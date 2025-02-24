@@ -34,7 +34,7 @@ print(qtl_pre)
 print(ld_dir)
 print(N1)
 
-# setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/"); chr="chr10"; coloc_file="output/coloc_no_se/coloc_eqtl_jurgens24_gwas_HF_chr10.txt"; qtl_pre="MaxPC49"; qtl_dir="output/tensorqtl_nominal/";ld_dir="output/linkage/"; N1=516;
+# setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/"); chr="chr10"; coloc_file="output/coloc/coloc_eqtl_candidates_full.txt"; qtl_pre="MaxPC49"; qtl_dir="output/tensorqtl_nominal/";ld_dir="output/linkage/"; N1=516;
 
 ### Datasets & Setup ###
 gtf <- data.table(readRDS("/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.streamlined.RDS")) %>% 
@@ -42,7 +42,7 @@ gtf <- data.table(readRDS("/standard/vol185/cphg_Manichaikul/users/csm6hg/genome
 
 coloc <- fread(coloc_file) %>% left_join(gtf, by=c("gene"="gene_edit", "chrom", "common_gene"))
 #coloc <- coloc[min_p.eqtl < 1e-3 & PP.H4 > 0.01]
-snps <- coloc[chrom %in% chr]
+snps <- coloc[chrom %in% chr][PP.H4>0.5]
 
 qtl.file <- list.files(path=qtl_dir, pattern = paste(chr, qtl_pre, sep="_"), full.names = T)
 qtl <- data.table(arrow::read_parquet(qtl.file) %>% 
@@ -53,7 +53,7 @@ print("Done reading in files.")
 
 # Function to run susie with LD matrix input
 susieWindow <- function(dt1, focalGene, N1) {
-    #dt1=qtl; focalGene="BAG3"
+    #dt1=qtl; focalGene="MYOZ1"
 
     print(focalGene)
     
@@ -134,39 +134,42 @@ susieWindow <- function(dt1, focalGene, N1) {
     # QC - check consistency of zscore and LD matrix
     zscore <- slope / se
     est <- estimate_s_rss(z = zscore, R = ld, n = N1)
-    # condz_in = kriging_rss(z = zscore, R = ld, n = N1)condz_in$plot
+    # condz_in = kriging_rss(z = zscore, R = ld, n = N1); condz_in$plot
     
-    # Conditional get CS
+    # Conditional get CS with credible set column
     if (length(susie_fit$sets$cs) == 0 || all(sapply(susie_fit$sets$cs, length) == 0)) {
       rs <- data.table(gene = focalGene, 
-                       chr = chr,
+                       chr = chr, 
                        SNP = NA, 
                        PIP = NA, 
                        estimate_s = est, 
-                       nSNPs = as.numeric(length(common_vars)))
+                       nSNPs = as.numeric(length(common_vars)),
+                       cs = NA,
+                       N = N1)
     } else {
+      cs_list <- susie_fit$sets$cs  # List of credible sets
+      # Flatten the list of SNP indices
+      snp_idx <- unlist(cs_list)
+      # Create a vector denoting the credible set number for each SNP.
+      cs_number <- rep(seq_along(cs_list), times = sapply(cs_list, length))
+      
       rs <- data.table(gene = focalGene,
                        chr = chr,
-                       SNP = rownames(ld)[unlist(susie_fit$sets$cs)],
-                       PIP = susie_fit$pip[unlist(susie_fit$sets$cs)],
+                       SNP = rownames(ld)[snp_idx],
+                       PIP = susie_fit$pip[snp_idx],
                        estimate_s = est,
-                       nSNPs = as.numeric(length(common_vars)))
+                       nSNPs = as.numeric(length(common_vars)),
+                       cs = cs_number,
+                       N = N1)
     }
-    
     print(rs)
     return(rs)
 }
 
-#head(snps$common_gene)
-
-# Run Susie in parallel using mclapply
-library(parallel)
-susie_results <- mclapply(snps$common_gene, function(genei) {
-  tryCatch({susieWindow(dt1 = qtl, focalGene = genei, N1 = N1)}, error = function(e) { NULL })}, mc.cores = 3) 
-
-# Keep only valid data.frame results
-susie_results_valid <- Filter(is.data.frame, susie_results)
+# Run Susie 
+susie_results <- lapply(unique(snps$common_gene), function(genei) {
+  susieWindow(dt1 = qtl, focalGene = genei, N1 = N1)}) 
 
 # Combine results into one data.table
-fin_susie <- rbindlist(susie_results_valid, fill = TRUE)
+fin_susie <- rbindlist(susie_results, fill = TRUE)
 write_delim(fin_susie, file = paste("susie_eqtl_", chr, ".txt", sep=""), delim = "\t")

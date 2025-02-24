@@ -5,11 +5,10 @@ nextflow.enable.dsl=2
 // Run susie_coloc.R on coloc and QTL files
 process SUSIE_Coloc {
 
+    label 'process_high'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/susie", mode: 'copy'
     errorStrategy = 'ignore'
-    memory = '15 GB'
-    threads = 4
     
     input:
         tuple val(chromosome),
@@ -20,7 +19,7 @@ process SUSIE_Coloc {
             val(N1)
     
     output:
-        path("susie_${chromosome}.txt")
+        path("*txt")
         //path("*pdf")
     
     script:

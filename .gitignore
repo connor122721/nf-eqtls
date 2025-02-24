@@ -11,10 +11,13 @@ output*/
 output_test_new/
 output/
 work/
-future/
+future*
 *pdf
 *png
-
+test*
+test/*
+list.eqtls*
+report.html
 # Ignore specific scripts directory checkpoints
 scripts/.ipynb_checkpoints
-.vscode/
+.vscode*
