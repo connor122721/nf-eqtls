@@ -12,6 +12,8 @@ process VCF_to_GDS {
     // Publish the output to the specified directory
     shell = '/usr/bin/env bash'
     publishDir "${params.out}", mode: 'copy', pattern: "*.gds"
+    memory = '50 GB' // This is a memory intensive job!
+    threads = 8
     
     // Define the input and output
     input:

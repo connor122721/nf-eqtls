@@ -72,6 +72,47 @@ process runColoc {
         """
 }
 
+// Run python coloc
+process coloc {
+
+    // Publish the output to the specified directory
+    shell = '/usr/bin/env bash'
+    publishDir "${params.out}/coloc", mode: 'copy'
+    errorStrategy = 'ignore'
+
+    input:
+        tuple path(eqtl),
+        val(chromosome),
+        val(best_k),
+        val(gwas_pre),
+        val(N_gwas),
+        val(N_eqtl)
+
+    output:
+        path("*")
+        val("${params.out}/coloc"), emit: outDir
+
+    script:
+        """
+        module load miniforge/24.3.0-py3.11
+        source activate base
+
+        # Get input files
+        processed_GWAS=${params.out}/gwas/*${gwas_pre}*${chromosome}.rds
+        firstRun=${params.out}/tensorqtl/*${chromosome}_MaxPC49.cis_qtl.txt.gz
+
+        # Run coloc analysis script - Levin 2022 GWAS
+        python3 ${params.scripts_dir}/coloc.py \\
+            --gwas \${processed_GWAS} \\
+            --eqtl ${eqtl} \\
+            --shortList \${firstRun} \\
+            --chromosome ${chromosome} \\
+            --N_gwas ${N_gwas} \\
+            --N_eqtl ${N_eqtl} \\
+            --prefix ${gwas_pre}
+        """
+}
+
 // Process for analyzing eqtl output
 process analysisColoc {
 

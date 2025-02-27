@@ -9,6 +9,7 @@ process dge_deseq {
         path metadata
         path gene_counts
         path gtf
+        path outdir
 
     output:
         path 'sig_dge_DCM.csv'
@@ -21,6 +22,7 @@ process dge_deseq {
         python ${params.scripts_dir}/dge_deseq2.py \
             --metadata ${metadata} \\
             --gene_counts ${gene_counts} \\
-            --gtf ${gtf}
+            --gtf ${gtf} \\
+            --outdir ${outdir}
         """
 }

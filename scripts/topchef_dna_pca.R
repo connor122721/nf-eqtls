@@ -30,6 +30,8 @@ pca_plot <- args$pca_plot
 tensorqtl_pca <- args$tensorqtl_pca
 outlier_output <- args$outlier_output
 
+#input_gds="filt.thin250.TOPchef.gds"; metadata_file="/standard/vol185/cphg_Manichaikul/users/csm6hg/metadata/metadata_10_17_2024_CSM.txt"; related_individuals="relatedIndividuals.txt"; pca_rds="pca.genome.filt.thin250.maf0.05.rds"; pca_plot="pc1_6_selfreportrace_filtsnps_maf0.05.png"; tensorqtl_pca="filt_dna_pc1_5_topchef.txt"; outlier_output="dna_outliers.txt"
+
 # Register cores
 threads <- parallel::detectCores()
 seqParallelSetup(threads)
@@ -151,6 +153,7 @@ pc12 <- {
       strip.text = element_text(face = "bold.italic", size = 14),
       legend.text = element_text(size = 14, face = "bold.italic"),
       legend.title = element_text(face = "bold", size = 14),
+      legend.position = "none",
       axis.text.x = element_text(face = "bold", size = 14),
       axis.text.y = element_text(face = "bold", size = 14),
       axis.title.x = element_text(face = "bold", size = 14),
@@ -171,6 +174,7 @@ pc23 <- {
       strip.text = element_text(face = "bold.italic", size = 14),
       legend.text = element_text(size = 14, face = "bold.italic"),
       legend.title = element_text(face = "bold", size = 14),
+      legend.position = "none",
       axis.text.x = element_text(face = "bold", size = 14),
       axis.text.y = element_text(face = "bold", size = 14),
       axis.title.x = element_text(face = "bold", size = 14),
@@ -210,7 +214,8 @@ pc45 <- {
     theme(
       strip.text = element_text(face = "bold.italic", size = 14),
       legend.text = element_text(size = 14, face = "bold.italic"),
-      legend.title = element_text(face = "bold", size = 14),
+      legend.title = element_text(face = "bold", size = 14),      
+      legend.position = "none",
       axis.text.x = element_text(face = "bold", size = 14),
       axis.text.y = element_text(face = "bold", size = 14),
       axis.title.x = element_text(face = "bold", size = 14),
@@ -231,6 +236,7 @@ pc56 <- {
       strip.text = element_text(face = "bold.italic", size = 14),
       legend.text = element_text(size = 14, face = "bold.italic"),
       legend.title = element_text(face = "bold", size = 14),
+      legend.position = "none",
       axis.text.x = element_text(face = "bold", size = 14),
       axis.text.y = element_text(face = "bold", size = 14),
       axis.title.x = element_text(face = "bold", size = 14),
@@ -249,8 +255,7 @@ scree <- {
 }
 
 # Composite figure
-pc_fin <- (((pc12 | pc23 | pc34) / (pc45 | pc56 | scree)) + 
-            plot_layout(guides = 'collect'))
+pc_fin <- (((pc12 | pc23 | pc34) / (pc45 | pc56 | scree)))
 
 # Save composite PCA plot
 ggsave(plot = pc_fin, filename = pca_plot, width = 16, height = 8)

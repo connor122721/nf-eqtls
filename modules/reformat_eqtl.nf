@@ -27,7 +27,7 @@ process reformat_eqtl {
         path("topchef_cov_RNApc1_*.txt")
         path("filt_rnaseq_norm_topchef_unrelated.bed")
         path("filt_rnaseq_norm_topchef_unrelated.sort.bed")
-        path("topchef_samples_1_15_25.txt")
+        path("topchef_samples_1_15_25.txt"), emit: sample_list
         path("rna_pca_elbow_best_k")
 
     script:

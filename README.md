@@ -31,7 +31,7 @@ graph TD
 
 ## Installation
 To run this pipeline, you need to have *Nextflow* and *Apptainer* installed.
-I am building a apptainer container (sandbox) to have some of the following dependencies installed:
+I am currently building an apptainer container (sandbox) to have all of the following dependencies installed:
 ```
 - NextFlow
 - Apptainer
@@ -51,12 +51,12 @@ apptainer build --sandbox nf_topchef Singularity.def
 ## Usage
 To run the pipeline, use the following command:
 ```sh
-nextflow run main_TensorQTL.nf -profile slurm
+nextflow run main_process.nf -profile slurm -bg
 ```
 
 After finishing the preparation files you can run TensorQTL with the following command:
 ```sh
-nextflow run main_tensorqtl_submission.nf -profile slurm 
+nextflow run main_eQTL.nf -profile slurm -bg 
 ```
 
 ## Main Scripts
@@ -93,3 +93,4 @@ This project is licensed under the MIT License.
 
 ## Citation
 TBD! 
+You can cite this repository as needed. 
