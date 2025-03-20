@@ -87,8 +87,8 @@ outs <- unique(c(out.rels, out.dna, out.rna))
 # Hard code samples and remove outliers/related individuals
 dna <- data.table(dna[!sample %in% outs])
 
-# Output RNA PCs 1-50 for eQTL saturation
-foreach(i=1:50) %do% {
+# Output RNA PCs 1-100 for eQTL saturation
+foreach(i=1:100) %do% {
   
   # Message: i=10
   print(i)

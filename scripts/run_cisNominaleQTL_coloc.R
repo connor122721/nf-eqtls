@@ -32,12 +32,10 @@ N_eqtl <- as.numeric(args$N_eqtl)
 output_pre <- args$prefix
 
 # setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/")
-# gwas_input="output/gwas/processed_jurgens24_gwas_HF_chr7.rds"
+gwas_input="output/gwas/processed_levin22_gwas_HF_chr7.rds"
 # eqtl_inpt="output/tensorqtl_nominal/topchef_chr7_MaxPC49.cis_qtl_pairs.chr7.parquet"
 # shortlist="output/tensorqtl/topchef_chr7_MaxPC49.cis_qtl.txt.gz"
-# N_gwas=1665481
-# N_eqtl=516
-# chromosome="chr7"
+# N_gwas=1665481;N_eqtl=516;chromosome="chr7"; output_pre="Jurgens2024"
 
 ### Datasets & Setup ###
 
@@ -76,6 +74,14 @@ coloc_chrom <- function(chr) {
       dt2 <- dt2[snpID_hg38 %in% dt1$variant_id]
       dt1 <- dt1[variant_id %in% dt2$snpID_hg38]
       
+      # Combine
+      dtsub <- dt1 %>% 
+        left_join(dt2 %>% 
+              select(variant_id=snpID_hg38,
+                     beta_gwas=beta, 
+                     varbeta_gwas=standard_error,
+                     pvalue_gwas=p_value))
+      
       # Make list for colocalization (TOPChef)
       dt1 <- list(snp = dt1$variant_id,
                   position = dt1$snp,
@@ -103,8 +109,22 @@ coloc_chrom <- function(chr) {
       maxi = max(coloc_res$results$SNP.PP.H4)
       snpi = coloc_res$results[which(coloc_res$results$SNP.PP.H4==maxi),]$snp
       
+      # Find candidate sentinenal variant
+      dtsub[, rank_eqtl := rank(pval_nominal), by = phenotype_id]
+      dtsub[, rank_gwas := rank(pvalue_gwas), by = phenotype_id]
+      dtsub[, total_rank := rank_eqtl + rank_gwas]
+      
+      # For each gene, choose the variant with the smallest total_rank
+      sentinel_combined <- dtsub[order(rank_gwas), .SD[1], by = phenotype_id]
+      sent = sentinel_combined$variant_id
+      
       #plot(coloc_res)
+      
+      library(MungeSumstats)
 
+      MungeSumstats::format_sumstats(path = dt2, ref_genome = "GRCh38")
+      
+      
       # Results of colocalization
       co <- data.table(chrom=chromi,
                        minPos=min_window,
@@ -119,9 +139,17 @@ coloc_chrom <- function(chr) {
                        PP.H3=coloc_res$summary["PP.H3.abf"],
                        PP.H4=coloc_res$summary["PP.H4.abf"],
                        H4_H3_ratio=coloc_res$summary["PP.H4.abf"]/coloc_res$summary["PP.H3.abf"],
+                       sentinel=sent,
+                       beta_qtl=sentinel_combined$slope,
+                       betase_qtl=sentinel_combined$slope_se,
+                       beta_gwas=sentinel_combined$beta_gwas,
+                       betase_gwas=sentinel_combined$varbeta_gwas,
                        maxSNP=snpi,
                        maxPP.H4=maxi,
-                       gwas_pre=output_pre)
+                       gwas_pre=output_pre) %>% 
+        mutate(beta_dir=case_when(beta_qtl > 0 & beta_gwas > 0 ~ "+",
+                                  beta_qtl < 0 & beta_gwas < 0 ~ "-",
+                                  TRUE ~ "Mismatch"))
       
       # Finish
       return(co)

@@ -47,7 +47,7 @@ process normalize_and_pca {
 
 // Tmm normalization and PCA
 process tmm_pipeline {
-
+    
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/rna", mode: 'copy'
 
@@ -62,6 +62,7 @@ process tmm_pipeline {
         path "pca_tmm.tsv", emit: pca_tmm
         path "pca_tmm.pdf"
         path "sex_assessment_plot.pdf"
+        path "metadata_with_sex_info.tsv"
         path "tmm.log"
 
     script:

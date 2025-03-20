@@ -94,7 +94,6 @@ def load_data(gene_counts_path, metadata_path):
 
     return gene_counts, meta, meta_full
 
-# Function to infer sex based on XIST and RPS4Y1 normalized expression
 def infer_sex(ccm, meta, xist_gene, rps4y1_gene, xist_threshold, rps4y1_threshold):
     print("Inferring sex based on XIST and RPS4Y1 expression...")
 
@@ -115,22 +114,29 @@ def infer_sex(ccm, meta, xist_gene, rps4y1_gene, xist_threshold, rps4y1_threshol
     xist_cpm = ccm.loc[xist_matches].sum(axis=0)
     rps4y1_cpm = ccm.loc[rps4y1_matches].sum(axis=0)
 
-    # Initialize sex column
+    # Initialize sex column and lists for expression values
     inferred_sex = []
+    xist_expr_list = []
+    rps4y1_expr_list = []
 
     for sample in ccm.columns:
-        xist = xist_cpm[sample]
-        rps4y1 = rps4y1_cpm[sample]
+        xist_val = xist_cpm[sample]
+        rps4y1_val = rps4y1_cpm[sample]
+        xist_expr_list.append(xist_val)
+        rps4y1_expr_list.append(rps4y1_val)
 
-        if (xist >= xist_threshold) and (rps4y1 <= rps4y1_threshold):
+        if (xist_val >= xist_threshold) and (rps4y1_val <= rps4y1_threshold):
             inferred_sex.append("Female")
-        elif (xist <= xist_threshold) and (rps4y1 >= rps4y1_threshold):
+        elif (xist_val <= xist_threshold) and (rps4y1_val >= rps4y1_threshold):
             inferred_sex.append("Male")
         else:
             inferred_sex.append("Unclear")
 
     meta = meta.copy()
     meta["Inferred_Sex"] = inferred_sex
+    meta["XIST_CPM"] = xist_expr_list
+    meta["RPS4Y1_CPM"] = rps4y1_expr_list
+
     num_females = (meta["Inferred_Sex"] == "Female").sum()
     num_males = (meta["Inferred_Sex"] == "Male").sum()
     num_unclear = (meta["Inferred_Sex"] == "Unclear").sum()
@@ -226,6 +232,10 @@ def main():
                      rps4y1_gene=args.rps4y1_gene,
                      xist_threshold=args.xist_threshold,
                      rps4y1_threshold=args.rps4y1_threshold)
+    
+    # Save the updated metadata to a new file
+    updated_meta_file = "metadata_with_sex_info.tsv"
+    meta.to_csv(updated_meta_file, sep="\t")
 
     # Generate Sex Assessment Plot
     plot_sex_assessment(ccm=ccm,
@@ -330,13 +340,13 @@ def main():
     # -------------------------------------------------------------------
     # shape => (samples x genes)
     data_for_pca = ccm_tmm_int.T.astype(float)
-    print(f"Performing PCA with 50 components on shape: {data_for_pca.shape}")
-    pca = PCA(n_components=50)
+    print(f"Performing PCA with 100 components on shape: {data_for_pca.shape}")
+    pca = PCA(n_components=100)
     data_scaled = StandardScaler().fit_transform(data_for_pca)
     pca_result = pca.fit_transform(data_scaled)
 
     # Build a DataFrame
-    pc_columns = [f"PC{i+1}" for i in range(50)]
+    pc_columns = [f"PC{i+1}" for i in range(100)]
     pca_df = pd.DataFrame(pca_result, columns=pc_columns, index=data_for_pca.index)
 
     # Add Affected_NF for coloring
@@ -370,11 +380,11 @@ def main():
     # Scree plot in the last subplot (axes.flat[5])
     scree_ax = axes.flat[5]
     explained_var = pca.explained_variance_ratio_ * 100  # convert to percentage
-    scree_ax.bar(range(1, 51), explained_var[:50], color="skyblue")
+    scree_ax.bar(range(1, 101), explained_var[:100], color="skyblue")
     scree_ax.set_xlabel("Principal Component", fontweight="bold", fontsize=12)
     scree_ax.set_ylabel("Explained Variance (%)", fontweight="bold", fontsize=12)
-    scree_ax.set_xticks(range(1, 51, 4))  # label every 4th PC
-    scree_ax.set_ylim(0, max(explained_var[:50]) * 1.2)
+    scree_ax.set_xticks(range(1, 101, 4))  # label every 4th PC
+    scree_ax.set_ylim(0, max(explained_var[:100]) * 1.2)
 
     plt.tight_layout()
     plt.savefig(args.output_plot_pdf, dpi=300)
@@ -389,7 +399,7 @@ def main():
     ccm_tmm_int.to_csv(args.output_norm, sep="\t")
 
     # pca_df has PC1..PC50 + Affected_NF
-    print(f"Saving PCA data (PC1..PC50) to: {args.output_pca}")
+    print(f"Saving PCA data (PC1..PC100) to: {args.output_pca}")
     pca_df.to_csv(args.output_pca, sep="\t")
 
     print("Done: TMM + INT normalization, sex assessment, 50-PC PCA, and plots.")

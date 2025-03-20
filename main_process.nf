@@ -178,9 +178,9 @@ include { prepGWAS as prepGWAS_levin } from './modules/coloc.nf'
 include { prepGWAS as prepGWAS_shah } from './modules/coloc.nf'
 include { prepGWAS as prepGWAS_jurgens } from './modules/coloc.nf'
 
-include { coloc as runColoc_levin } from './modules/coloc.nf'
-include { coloc as runColoc_shah } from './modules/coloc.nf'
-include { coloc as runColoc_jurgens } from './modules/coloc.nf'
+include { runColoc as runColoc_levin } from './modules/coloc.nf'
+include { runColoc as runColoc_shah } from './modules/coloc.nf'
+include { runColoc as runColoc_jurgens } from './modules/coloc.nf'
 include { analysisColoc } from './modules/coloc.nf'
 
 // Run Full Workflow! Woo! 
@@ -252,7 +252,7 @@ workflow {
     plink_prefix_ch = bed.plink_prefix
 
     // Number of RNA PCs to test
-    pcs = Channel.from(1..50)
+    pcs = Channel.from(1..100)
 
     // Combine all chromosome / PC 
     chrom_covs = chroms
@@ -284,7 +284,7 @@ workflow {
     // Run tensorQTL - nominal p-value
     chrom_covs
         .combine(plink_prefix_ch, by: 0)
-        .filter { it[2] == 49 }  // Filter for PC equal to best k
+        .filter { it[2] == 70 }  // Filter for PC equal to best k
         .set { tensorqtl_input_nom_ch }
 
     // 4) Run tensorQTL - nominal p-value
@@ -292,16 +292,16 @@ workflow {
 
     // 5) Prep GWAS for coloc
     prepGWAS_out_levin = prepGWAS_levin(params.gwas_levin,
-                                    "levin22_gwas_HF",
-                                    "TRUE")
+                                "levin22_gwas_HF",
+                                "TRUE")
 
     prepGWAS_out_shah = prepGWAS_shah(params.gwas_shah,
-                                    "shah20_gwas_HF",
-                                    "TRUE")
+                                "shah20_gwas_HF",
+                                "TRUE")
 
     prepGWAS_out_jurgens = prepGWAS_jurgens(params.gwas_jurgens,
-                                    "jurgens24_gwas_HF",
-                                    "FALSE")
+                                "jurgens24_gwas_HF",
+                                "FALSE")
 
     // 6) Run coloc analyses
     N_levin = Channel.of(1665481, 516).toList()

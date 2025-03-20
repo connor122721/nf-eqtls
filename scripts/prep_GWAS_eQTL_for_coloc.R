@@ -7,6 +7,7 @@
 library(data.table)
 library(tidyverse)
 library(foreach)
+library(MungeSumstats)
 library(argparse)
 
 # Argument parser
@@ -38,6 +39,10 @@ newcols = data.table(cols=colnames(gwas_input)) %>%
                        cols=="se"~"standard_error",
                        cols=="b"~"beta",
                        cols=="BETA"~"beta",
+                       cols=="effect_allele"~"A1",
+                       cols=="EA"~"A1",
+                       cols=="NEA"~"A2",
+                       cols=="other_allele"~"A2",
                        TRUE ~ cols))
 
 colnames(gwas_input) <- newcols$new

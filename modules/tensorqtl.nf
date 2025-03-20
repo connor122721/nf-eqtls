@@ -8,7 +8,7 @@ process TensorQTLSubmission {
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/tensorqtl", mode: 'copy'
     threads = 8
-    memory = '15 GB'
+    memory = '30 GB'
     // debug true
 
     input:
@@ -45,7 +45,7 @@ process TensorQTLNominal {
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/tensorqtl_nominal", mode: 'copy'
     threads = 8
-    memory = '20 GB'
+    memory = '30 GB'
 
     input:
         tuple val(chromosome), 

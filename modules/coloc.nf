@@ -3,12 +3,12 @@
 nextflow.enable.dsl=2
 
 // Process for analyzing eqtl output
-process prepGWAS {
+process prepGWAS_noBetaCheck {
 
     // Publish the output to the specified directory
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/gwas", mode: 'copy'
-    memory = '30 GB' // This is a memory intensive job!
+    memory = '50 GB' // This is a memory intensive job!
     threads = 4
 
     input:
@@ -26,6 +26,36 @@ process prepGWAS {
 
         # Run analysis script
         Rscript ${params.scripts_dir}/prep_GWAS_eQTL_for_coloc.R \\
+            --gwas ${gwas} \\
+            --prefix ${prefix} \\
+            --liftover ${liftover}
+        """
+}
+
+// Process for analyzing eqtl output
+process prepGWAS {
+
+    // Publish the output to the specified directory
+    shell = '/usr/bin/env bash'
+    publishDir "${params.out}/gwas", mode: 'copy'
+    memory = '50 GB' // This is a memory intensive job!
+    threads = 4
+
+    input:
+        path(gwas)
+        val(prefix)
+        val(liftover)
+
+    output:
+        path("processed*")
+        val(prefix), emit: prefix
+
+    script:
+        """
+        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+
+        # Run analysis script
+        Rscript ${params.scripts_dir}/standardize_GWAS_eQTL_for_coloc_new.R \\
             --gwas ${gwas} \\
             --prefix ${prefix} \\
             --liftover ${liftover}
