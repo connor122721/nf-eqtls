@@ -9,6 +9,7 @@ work/
 future*
 *pdf
 *png
+*svg
 test*
 test/*
 list.eqtls*

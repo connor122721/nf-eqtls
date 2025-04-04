@@ -31,10 +31,8 @@ N_gwas <- as.numeric(args$N_gwas)
 N_eqtl <- as.numeric(args$N_eqtl)
 output_pre <- args$prefix
 
-# setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/")
-gwas_input="output/gwas/processed_levin22_gwas_HF_chr7.rds"
-# eqtl_inpt="output/tensorqtl_nominal/topchef_chr7_MaxPC49.cis_qtl_pairs.chr7.parquet"
-# shortlist="output/tensorqtl/topchef_chr7_MaxPC49.cis_qtl.txt.gz"
+# setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/");gwas_input="output/gwas/processed_jurgens24_gwas_HF_chr7.rds"
+# eqtl_inpt="output/tensorqtl_nominal/topchef_chr7_MaxPC49.cis_qtl_pairs.chr7.parquet";shortlist="output/tensorqtl/topchef_chr7_MaxPC49.cis_qtl.txt.gz"
 # N_gwas=1665481;N_eqtl=516;chromosome="chr7"; output_pre="Jurgens2024"
 
 ### Datasets & Setup ###
@@ -80,7 +78,10 @@ coloc_chrom <- function(chr) {
               select(variant_id=snpID_hg38,
                      beta_gwas=beta, 
                      varbeta_gwas=standard_error,
-                     pvalue_gwas=p_value))
+                     pvalue_gwas=p_value,
+                     A1,
+                     A2,
+                     rsid=SNP))
       
       # Make list for colocalization (TOPChef)
       dt1 <- list(snp = dt1$variant_id,
@@ -120,11 +121,6 @@ coloc_chrom <- function(chr) {
       
       #plot(coloc_res)
       
-      library(MungeSumstats)
-
-      MungeSumstats::format_sumstats(path = dt2, ref_genome = "GRCh38")
-      
-      
       # Results of colocalization
       co <- data.table(chrom=chromi,
                        minPos=min_window,
@@ -144,12 +140,11 @@ coloc_chrom <- function(chr) {
                        betase_qtl=sentinel_combined$slope_se,
                        beta_gwas=sentinel_combined$beta_gwas,
                        betase_gwas=sentinel_combined$varbeta_gwas,
+                       A1=sentinel_combined$A1,
+                       A2=sentinel_combined$A2,
                        maxSNP=snpi,
                        maxPP.H4=maxi,
-                       gwas_pre=output_pre) %>% 
-        mutate(beta_dir=case_when(beta_qtl > 0 & beta_gwas > 0 ~ "+",
-                                  beta_qtl < 0 & beta_gwas < 0 ~ "-",
-                                  TRUE ~ "Mismatch"))
+                       gwas_pre=output_pre)
       
       # Finish
       return(co)

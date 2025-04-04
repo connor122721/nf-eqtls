@@ -8,8 +8,8 @@ process LD_CandidateGenes {
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/linkage", mode: 'copy'
     threads = 1
-    errorStrategy = 'retry'
-    memory = '20 GB'
+    errorStrategy = 'ignore'
+    memory = '30 GB'
 
     input:
         tuple path(input_vcf),
@@ -137,7 +137,7 @@ workflow {
     
     // Define GWAS and eQTL inputs
     gwas_list = Channel.from(["shah20_gwas_HF", "levin22_gwas_HF", "jurgens24_gwas_HF"])
-    eqtl_input = Channel.from("MaxPC49")
+    eqtl_input = Channel.from("MaxPC70")
     chrom_list = Channel.from(1..22).map { "chr${it}" }
 
     // Combine GWAS, eQTL, chromosome, and gene inputs

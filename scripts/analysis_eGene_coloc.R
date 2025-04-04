@@ -248,7 +248,8 @@ plot1 <- {
     labs(x = expression("-log(cis-eQTL " * italic(p) * "-value)"),
          y = expression("-log(GWAS " * italic(p) * "-value)")) +
     themei +
-    theme(strip.text = element_text(face = "bold.italic", size = 20),
+    theme(aspect.ratio = 1,
+          strip.text = element_text(face = "bold.italic", size = 20),
           legend.title = element_text(face = "bold", size = 20))
 
 }
@@ -271,7 +272,8 @@ plot_eqtl <- {
     labs(x = "Position (Mbps)",
          y = expression("-log(TOPCHef eQTL " * italic(p) * "-value)")) +
     themei +
-    theme(strip.text = element_text(face = "bold.italic", size = 20),
+    theme(aspect.ratio = 1,
+          strip.text = element_text(face = "bold.italic", size = 20),
           legend.title = element_text(face = "bold", size = 20))
   
 }
@@ -294,14 +296,37 @@ plot_gwas <- {
     labs(x = "Position (Mbps)",
          y = expression("-log(GWAS " * italic(p) * "-value)")) +
     themei +
-    theme(strip.text = element_text(face = "bold.italic", size = 20),
+    theme(aspect.ratio = 1,
+          strip.text = element_text(face = "bold.italic", size = 20),
           legend.title = element_text(face = "bold", size = 20))
   
 }
 
-combined_plot <- (plot1 / plot_eqtl / plot_gwas)
+# Gene regions subplot!
+library(ggrepel)
+gtf.dt <- gtf[chrom==unique(dt1$chromosome)][start %in% min(dt1$pos_hg38):max(dt1$pos_hg38)][common_gene %in% unique(dt$common_gene)]
+gene_reg <- {
+  
+  gtf.dt %>% 
+    ggplot(aes(x = start/1e6, xend = stop/1e6,
+               y = reorder(common_gene, start),
+               yend = reorder(common_gene, start))) +
+    geom_segment(color = "lightblue2", linewidth = 4) +
+    geom_text_repel(aes(x = (start + stop) / (2 * 1e6), label = common_gene),
+              color = "black", size = 3, vjust = -0.5) +
+    geom_vline(xintercept = dt1[SNP==lead_rsid]$pos_hg38/1e6, linetype=4, color="red") +
+    theme_minimal() +
+    themei +
+    theme(aspect.ratio = 0.3, 
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank()) +
+    labs(x = "Position (Mbps)", y = "Gene")
+
+}
+
+combined_plot <- (plot1 / plot_eqtl / plot_gwas) / gene_reg
 
 # Save Output!
 ggsave(plot = combined_plot, 
        filename = paste(genei, ".topchef.coloc.", gwas_input, ".pdf", sep=""), 
-       width = 7, height = 14)
+       width = 20, height = 20)

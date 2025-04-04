@@ -172,6 +172,7 @@ include { normalize_and_pca; tmm_pipeline } from './modules/mainRNA_flow.nf'
 include { CreateBedFiles } from './modules/makeBedPlink.nf'
 include { TensorQTLSubmission } from './modules/tensorqtl.nf'
 include { TensorQTLNominal } from './modules/tensorqtl.nf'
+include { TensorTransQTL } from './modules/trans_eqtl.nf'
 
 include { analysis_eqtl_saturation } from './modules/analysis_eqtl_saturation.nf'
 include { prepGWAS as prepGWAS_levin } from './modules/coloc.nf'
@@ -287,8 +288,11 @@ workflow {
         .filter { it[2] == 70 }  // Filter for PC equal to best k
         .set { tensorqtl_input_nom_ch }
 
-    // 4) Run tensorQTL - nominal p-value
+    // 4A) Run tensorQTL - nominal p-value
     TensorQTLNominal(tensorqtl_input_nom_ch)
+
+    // 4B) Run tensorQTL - trans eQTL
+    TensorTransQTL(tensorqtl_input_nom_ch)
 
     // 5) Prep GWAS for coloc
     prepGWAS_out_levin = prepGWAS_levin(params.gwas_levin,

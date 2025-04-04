@@ -30,39 +30,19 @@ coloc <- coloc[coloc%like%"_gwas_HF_"]
 gtf <- data.table(read_rds("/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.streamlined.RDS"))
 
 # Coloc run 
-dt1 <- rbindlist(lapply(coloc, function(t) {fread(t, header = T)})) %>% 
+dt1 <- rbindlist(lapply(coloc, function(t) {fread(t, header = T)}), fill = T) %>% 
   left_join(gtf %>% 
-              select(-c(file, V7, V9)), 
-            by=c("gene"="gene_edit","chrom"))
+              dplyr::select(-c(file, V7, V9)), 
+            by=c("gene"="gene_edit","chrom")) %>% 
+  mutate(dir=case_when(beta_qtl > 0 & beta_gwas > 0 ~ "+",
+                       beta_qtl < 0 & beta_gwas < 0 ~ "-",
+                       TRUE ~ "Flip"))
 
 # Candidate colocalized genes !
 candy <- dt1
 
-### Plot ###
-
-# Transform the data to wide format with PP.H4 scores
-dt.co <- data.table(candy %>% 
-                      dplyr::select(common_gene, gwas_pre, PP.H4) %>% 
-                      distinct() %>%
-                      pivot_wider(values_from = PP.H4, 
-                                  names_from = gwas_pre,
-                                  values_fn = list(PP.H4 = mean)))
-
 # Define the significance threshold
 threshold <- 0.8
-
-# Identify significant genes for each GWAS and retain PP.H4 scores or set to NA
-dt.co[, `:=`(
-  Levin2022 = ifelse(levin22_gwas_HF >= threshold, levin22_gwas_HF, NA),
-  Shah2020 = ifelse(shah20_gwas_HF >= threshold, shah20_gwas_HF, NA),
-  Jurgens2024 = ifelse(jurgens24_gwas_HF >= threshold, jurgens24_gwas_HF, NA))]
-
-# Pivot the data to long format for plotting
-b <- data.frame(dt.co %>% 
-                  select(common_gene, Levin2022, Shah2020, Jurgens2024) %>%
-                  pivot_longer(cols = c(Levin2022, Shah2020, Jurgens2024),
-                               names_to = "GWAS",
-                               values_to = "PP.H4"))
 
 # Define the custom theme
 themei <- theme_bw() + 
@@ -73,36 +53,49 @@ themei <- theme_bw() +
         legend.text = element_text(face = "bold", size = 18),
         legend.title = element_text(face = "bold", size = 18))
 
-# Create the Upset-like plot with point sizes based on PP.H4 scores
+# Build plotting DF
+p <- candy %>%
+  filter(PP.H4 >= threshold) %>%
+  dplyr::select(common_gene, gwas_pre, PP.H4, beta_qtl, dir) %>%
+  distinct()
+
+# Precompute vertical segment endpoints
+segment_df <- p %>%
+  group_by(common_gene) %>%
+  summarise(min_y = min(gwas_pre), max_y = max(gwas_pre), .groups="drop")
+
+# Make summary plot
 plot1 <- {
-  b %>% 
-    filter(!is.na(PP.H4)) %>% 
-    group_by(common_gene) %>% 
-    mutate(min_y = min(GWAS, na.rm = TRUE),
-           max_y = max(GWAS, na.rm = TRUE)) %>% 
-    ggplot(aes(x = common_gene, y = GWAS)) +
-    geom_segment(aes(x = common_gene, 
+  
+  p %>%  
+    ggplot(., 
+           aes(x = common_gene, 
+               y = gwas_pre)) +
+    geom_segment(data = segment_df,
+                 aes(x = common_gene, 
                      xend = common_gene, 
                      y = min_y, 
-                     yend = max_y), 
-                 linetype = "dashed", 
-                 color = "gray", 
-                 linewidth = 2) +
-    geom_point(aes(color = PP.H4), size=8) +
-    scale_color_continuous(type = "viridis") +
+                     yend = max_y),
+                 linetype = "dashed", color = "gray50", linewidth = 1) +
+    geom_point(aes(shape = dir, fill= abs(beta_qtl)), size=4) +
+    coord_flip() +
+    scale_fill_viridis_c(name = "eQTL Effect Size") + 
+    scale_shape_manual(name = "GWAS/eQTL Direction", 
+                       values = c("+" = 24, "-" = 25, "Flip" = 21)) +
     themei +
     labs(x = "Colocalized Gene",
-         y = "Query Dataset", 
-         title = "Colocalization with TOPCHef eQTLs (PP.H4 > 0.8)") +
-    theme(legend.position = "right",
-          axis.text.x = element_text(face = "bold.italic", size = 18, angle = 45, hjust = 1),
-          axis.text.y = element_text(face = "bold.italic", size = 18),
-          axis.title = element_text(face = "bold", size = 18),
-          plot.title = element_text(face = "bold", hjust = 0.5, size = 18))
+         size="eQTL Effect",
+         y = "GWAS Dataset") +
+    theme(legend.position = "right", 
+          axis.text.x = element_text(face = "bold.italic", size = 14, angle = 45, hjust = 1),
+          axis.text.y = element_text(face = "bold.italic", size = 12),
+          axis.title = element_text(face = "bold", size = 14),
+          plot.title = element_text(face = "bold", hjust = 0.5, size = 14))
+
 }
 
 # Save output image
-ggsave(plot = plot1, filename = "coloc_genes.pdf", dpi = 300, width = 16, height = 7)
+ggsave(plot = plot1, filename = "coloc_genes.pdf", dpi = 300, width = 12, height = 14)
 
 # Output results
 write_delim(candy, file = "coloc_eqtl_candidates_full.txt", delim = "\t")

@@ -7,7 +7,6 @@
 library(data.table)
 library(tidyverse)
 library(foreach)
-library(MungeSumstats)
 library(argparse)
 
 # Argument parser
@@ -19,44 +18,47 @@ args <- parser$parse_args()
 
 gwas_input <- fread(args$gwas, header=T)
 output_pre <- args$prefix
-# gwas_input=fread("../data/HF-multiancestry-maf0.01.tsv.gz", header=T)
-# gwas_input=fread("/standard/vol185/cphg_Manichaikul/users/csm6hg/data/DCM_GWAS/Jurgens_DCM_GWAS_META_BiobanksOnly.tsv.gz"); liftover="FALSE"
+# gwas_input=fread("/standard/vol185/cphg_Manichaikul/users/csm6hg/data/HF-multiancestry-maf0.01.tsv.gz", header=T); liftover="TRUE"; output_pre="Levin22"
+# gwas_input=fread("/standard/vol185/cphg_Manichaikul/users/csm6hg/data/DCM_GWAS/Jurgens_DCM_GWAS_META_BiobanksOnly.tsv.gz"); liftover="FALSE"; output_pre="Jurgens24"
 
 ### Datasets & Setup ###
 
 # Make standardized column names
 newcols = data.table(cols=colnames(gwas_input)) %>% 
-  mutate(new=case_when(cols=="base_pair_location"~"BP",
-                       cols=="pos"~"BP",
-                       cols=="POS"~"BP",
-                       cols=="effect_allele_frequency"~"af",
-                       cols=="freq"~"af",
-                       cols=="EAFREQ"~"af",
-                       cols=="chromosome"~"CHR",
-                       cols=="p"~"p_value",
-                       cols=="P"~"p_value",
-                       cols=="SE"~"standard_error",
-                       cols=="se"~"standard_error",
-                       cols=="b"~"beta",
-                       cols=="BETA"~"beta",
-                       cols=="effect_allele"~"A1",
-                       cols=="EA"~"A1",
-                       cols=="NEA"~"A2",
-                       cols=="other_allele"~"A2",
-                       cols=="rsID"~"SNP",
-                       cols=="variant_id"~"SNP",
-                       TRUE ~ cols))
+  mutate(new=case_when(
+    cols=="base_pair_location" ~ "BP",
+    cols=="pos" ~ "BP",
+    cols=="POS" ~ "BP",
+    cols=="effect_allele_frequency" ~ "af",
+    cols=="freq" ~ "af",
+    cols=="EAFREQ" ~ "af",
+    cols=="chromosome" ~ "CHR",
+    cols=="p" ~ "p_value",
+    cols=="P" ~ "p_value",
+    cols=="SE" ~ "standard_error",
+    cols=="se" ~ "standard_error",
+    cols=="b" ~ "beta",
+    cols=="BETA" ~ "beta",
+    cols=="effect_allele" ~ "A1",
+    cols=="EA" ~ "A1",
+    cols=="NEA" ~ "A2",
+    cols=="other_allele" ~ "A2",
+    cols=="rsID" ~ "SNP",
+    cols=="variant_id" ~ "SNP",
+    TRUE ~ cols))
 
 colnames(gwas_input) <- newcols$new
 
 # Read in GWAS 
 gwas <- data.table(gwas_input %>% 
-                     mutate(snpID=paste("chr", CHR, ":", BP, sep=""),
-                            maf=case_when(af > 0.5 ~ 1 - af,
-                                          TRUE ~ af),
-                            chromosome=paste("chr", CHR, sep="")))
+                     mutate(snpID = paste("chr", CHR, ":", BP, sep=""),
+                            maf = case_when(af > 0.5 ~ 1 - af,
+                                            TRUE ~ af),
+                            chromosome = paste("chr", CHR, sep="")))
 
 print("Finished standardizing columns")
+
+# gwas <- gwas[1:100000]
 
 # Check if liftover should be processed
 if (args$liftover == TRUE) {
@@ -73,7 +75,7 @@ if (args$liftover == TRUE) {
   chain <- import.chain("/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/hg19ToHg38.over.chain")
   
   # Convert to GRanges
-  gr <- GRanges(seqnames = gwas$CHR,
+  gr <- GRanges(seqnames = gwas$chromosome,
                 ranges = IRanges(start = gwas$BP, 
                                  end = gwas$BP))
   
@@ -92,7 +94,9 @@ if (args$liftover == TRUE) {
   gwas$chr_hg38[mapped_indices] <- as.character(seqnames(lifted_gr_unlisted))
   gwas$pos_hg38[mapped_indices] <- start(lifted_gr_unlisted)
   gwas[, snpID_hg38 := paste0(chr_hg38, ":", pos_hg38)]
+  gwas <- gwas[!is.na(pos_hg38)]
   uniqChrom = na.omit(unique(gwas$chr_hg38))
+  
 } else {
   
   print("Skipping LiftOver!")
@@ -103,32 +107,46 @@ if (args$liftover == TRUE) {
   uniqChrom = na.omit(unique(gwas$chromosome))
 }
 
-# Check Effect Allele vs. Reference Allele
+# Check effect allele vs. reference and fix effect direction 
 library(BSgenome.Hsapiens.UCSC.hg38)
 ref_genome <- BSgenome.Hsapiens.UCSC.hg38
 
-#gwasTest=gwas[1:1000]
+# Pre‑allocate
+gwas[, ref_allele := NA_character_]
 
-# For each SNP, extract the reference base from the genome using chr_hg38 and pos_hg38
-gwasTest[, ref_allele := mapply(function(chr, pos) {
-  if (chr %in% seqnames(ref_genome)) {
-    as.character(subseq(ref_genome[[chr]], start = pos, end = pos))
-  } else {
-    NA_character_
-  }
-}, chromosome, pos_hg38)]
+# Grab hg38 chromosome lengths
+hg38_seqlens <- seqlengths(ref_genome)
 
-# Compare the reported effect allele (A1) to the reference allele
+# Identify rows with valid chr & pos_hg38
+valid_idx <- which(!is.na(gwas$chromosome) &
+                     gwas$chromosome %in% names(hg38_seqlens) &
+                     gwas$pos_hg38 >= 1 &
+                     gwas$pos_hg38 <= hg38_seqlens[gwas$chromosome])
+
+# Build a GRanges only for valid positions
+gr_valid <- GRanges(seqnames = gwas$chr_hg38[valid_idx],
+                    ranges   = IRanges(start = gwas$pos_hg38[valid_idx], width = 1))
+
+# Make sure seqlevels match exactly
+seqlevelsStyle(gr_valid) <- seqlevelsStyle(ref_genome)
+
+# Vectorized extraction
+gwas[valid_idx, ref_allele := as.character(getSeq(ref_genome, gr_valid))]
+
+# Identify SNPs that might need allele flipping
 gwas[, allele_flip := ifelse(toupper(A1) != toupper(ref_allele) & toupper(A2) == toupper(ref_allele), TRUE, FALSE)]
 
-if ("beta" %in% colnames(gwasTest)) {
+# Swap alleles and flip beta for SNPs flagged as flipped
+if ("beta" %in% colnames(gwas)) {
   gwas[allele_flip == TRUE, c("A1", "A2") := list(A2, A1)]
   gwas[allele_flip == TRUE, beta := -beta]
 } else {
   gwas[allele_flip == TRUE, c("A1", "A2") := list(A2, A1)]
 }
 
-# How many SNPs match the reference?
+# Optionally, if you want to see a summary of the allele check after flipping,
+# you can recalculate a check column
+gwas[, effect_allele_correct := (toupper(A1) == toupper(ref_allele))]
 print("Summary of effect allele check (TRUE means A1 matches the reference allele):")
 print(table(gwas$effect_allele_correct))
 
@@ -139,7 +157,7 @@ gwas.t <- data.table(gwas[!duplicated(snpID_hg38)])
 gwas_SNPS <- unique(gwas$snpID_hg38)
 
 # Split GWAS by chromosome and write 
-foreach(i=1:length(uniqChrom)) %do% {
+foreach(i = 1:length(uniqChrom)) %do% {
   print(uniqChrom[i])
   saveRDS(gwas.t[chromosome == uniqChrom[i]], 
           file = paste("processed_", output_pre, "_", uniqChrom[i], ".rds", sep=""))
