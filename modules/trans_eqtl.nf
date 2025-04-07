@@ -9,7 +9,6 @@ process TensorTransQTL {
     publishDir "${params.out}/trans_qtl", mode: 'copy'
     threads = 8
     memory = '30 GB'
-    // debug true
 
     input:
         tuple val(chromosome), 
@@ -19,8 +18,7 @@ process TensorTransQTL {
               val(plink_prefix)    
 
     output:
-        tuple path("*cis_qtl.txt.gz"),
-            val("${params.out}/tensorqtl"), emit: tensorqtl_out 
+        path("*parquet") 
 
     script:
         """
@@ -34,6 +32,8 @@ process TensorTransQTL {
             topchef_${chromosome}_MaxPC${pc} \\
             --maf_threshold 0.01 \\
             --covariates ${params.out}/eqtl/${covariate} \\
-            --mode trans
+            --mode trans \\
+            --return_r2
+            
         """
 }

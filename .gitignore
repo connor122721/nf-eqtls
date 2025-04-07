@@ -13,6 +13,8 @@ future*
 test*
 test/*
 list.eqtls*
+*html
 report.html
 scripts/.ipynb_checkpoints
 .vscode/
+report.html

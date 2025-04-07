@@ -3,9 +3,9 @@
 nextflow.enable.dsl=2
 
 /*
- * A Nextflow pipeline that:
+ *  Nextflow pipeline that:
  *  Reformats GTF for transcription start sites.
- *  Extracts and indexes a VCF using bcftools.
+ *  Extracts and indexes VCF using bcftools.
  *  Concatenates all non-thinned VCFs.
  *  Runs King on extracted full VCF.
  *  Calculates linkage disequilibrium and prunes the VCF.
@@ -16,8 +16,9 @@ nextflow.enable.dsl=2
  *  Reformats PC covariates and VCF for cis-eQTL pipeline.
  *  Normalizes RNA counts.
  *  Performs PCA on normalized RNA counts.
- *  Runs eQTL pipeline.
+ *  Runs cis/cis-susie/trans-eQTL pipeline.
  *  Runs colocalization analysis.
+ *  Runs plotting and other analyses.
  */
 
 // ---------------------------
@@ -157,7 +158,7 @@ process VCFThin {
 // (C) Define Workflow
 // ---------------------------
 
-// Modules to run for QC and processing
+// Modules to run QC, normalization, and processing
 include { reformat_tss_gtf } from './modules/reformat_TSS_gtf.nf'
 include { ConcatVCF as ConcatVCF_1 } from './modules/concatvcf.nf'
 include { ConcatVCF as ConcatVCF_2 } from './modules/concatvcf.nf'
@@ -168,12 +169,14 @@ include { SNP_PCA } from './modules/SNP_PCA.nf'
 include { reformat_eqtl } from './modules/reformat_eqtl.nf'
 include { normalize_and_pca; tmm_pipeline } from './modules/mainRNA_flow.nf'
 
-// Modules to run for eQTL mapping and colocalization
+// Modules to run for cis/cis-susie/trans-eQTL mapping 
 include { CreateBedFiles } from './modules/makeBedPlink.nf'
 include { TensorQTLSubmission } from './modules/tensorqtl.nf'
 include { TensorQTLNominal } from './modules/tensorqtl.nf'
+include { TensorQTLSusie } from './modules/tensorQTL_susie.nf'
 include { TensorTransQTL } from './modules/trans_eqtl.nf'
 
+// Modules to run colocolocalization analyses
 include { analysis_eqtl_saturation } from './modules/analysis_eqtl_saturation.nf'
 include { prepGWAS as prepGWAS_levin } from './modules/coloc.nf'
 include { prepGWAS as prepGWAS_shah } from './modules/coloc.nf'
@@ -288,11 +291,15 @@ workflow {
         .filter { it[2] == 70 }  // Filter for PC equal to best k
         .set { tensorqtl_input_nom_ch }
 
-    // 4A) Run tensorQTL - nominal p-value
+    // 4A) Run tensorQTL - cis-nominal p-value
     TensorQTLNominal(tensorqtl_input_nom_ch)
 
-    // 4B) Run tensorQTL - trans eQTL
+    // 4B) Run tensorQTL - trans-eQTL
     TensorTransQTL(tensorqtl_input_nom_ch)
+
+    // 4C) Run tensorQTL - cis-SuSiE
+    TensorQTLSusie(tensorqtl_input_nom_ch
+                   .combine(TensorQTLNominal.out.collect()))
 
     // 5) Prep GWAS for coloc
     prepGWAS_out_levin = prepGWAS_levin(params.gwas_levin,
