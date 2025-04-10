@@ -32,8 +32,9 @@ N_eqtl <- as.numeric(args$N_eqtl)
 output_pre <- args$prefix
 
 # setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/");gwas_input="output/gwas/processed_jurgens24_gwas_HF_chr7.rds"
-# eqtl_inpt="output/tensorqtl_nominal/topchef_chr7_MaxPC49.cis_qtl_pairs.chr7.parquet";shortlist="output/tensorqtl/topchef_chr7_MaxPC49.cis_qtl.txt.gz"
+# eqtl_inpt="output/tensorqtl_nominal/topchef_chr7_MaxPC70.cis_qtl_pairs.chr7.parquet";shortlist="output/tensorqtl/topchef_chr7_MaxPC70.cis_qtl.txt.gz"
 # N_gwas=1665481;N_eqtl=516;chromosome="chr7"; output_pre="Jurgens2024"
+# sig_genes=unlist(fread(shortlist) %>% select(phenotype_id))
 
 ### Datasets & Setup ###
 
@@ -83,6 +84,11 @@ coloc_chrom <- function(chr) {
                      A2,
                      rsid=SNP))
       
+      # Number of putative significant cis regions
+      nSnps = as.numeric(dtsub %>% 
+              filter(pval_nominal <= 1e-5) %>% 
+              summarize(n()))
+      
       # Make list for colocalization (TOPChef)
       dt1 <- list(snp = dt1$variant_id,
                   position = dt1$snp,
@@ -129,6 +135,7 @@ coloc_chrom <- function(chr) {
                        min_p.eqtl=min(dt1$pvalues),
                        min_p.gwas=min(dt2$pvalues),
                        nsnps=coloc_res$summary["nsnps"],
+                       nCis=nSnps,
                        PP.H0=coloc_res$summary["PP.H0.abf"],
                        PP.H1=coloc_res$summary["PP.H1.abf"],
                        PP.H2=coloc_res$summary["PP.H2.abf"],

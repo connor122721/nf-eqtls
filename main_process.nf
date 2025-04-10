@@ -175,6 +175,7 @@ include { TensorQTLSubmission } from './modules/tensorqtl.nf'
 include { TensorQTLNominal } from './modules/tensorqtl.nf'
 include { TensorQTLSusie } from './modules/tensorQTL_susie.nf'
 include { TensorTransQTL } from './modules/trans_eqtl.nf'
+include { TensorTransQTLSusie } from './modules/trans_eqtl.nf'
 
 // Modules to run colocolocalization analyses
 include { analysis_eqtl_saturation } from './modules/analysis_eqtl_saturation.nf'
@@ -293,14 +294,17 @@ workflow {
 
     // 4A) Run tensorQTL - cis-nominal p-value
     TensorQTLNominal(tensorqtl_input_nom_ch)
-
-    // 4B) Run tensorQTL - trans-eQTL
-    TensorTransQTL(tensorqtl_input_nom_ch)
-
-    // 4C) Run tensorQTL - cis-SuSiE
+    
+    // 4B) Run tensorQTL - cis-eQTL SuSiE
     TensorQTLSusie(tensorqtl_input_nom_ch
                    .combine(TensorQTLNominal.out.collect()))
 
+    // 4C) Run tensorQTL - trans-eQTL
+    TensorTransQTL(tensorqtl_input_nom_ch)
+
+    // 4D) Run tensorQTL - trans-eQTL SuSiE
+    // TensorTransQTLSusie(tensorqtl_input_nom_ch)  
+    
     // 5) Prep GWAS for coloc
     prepGWAS_out_levin = prepGWAS_levin(params.gwas_levin,
                                 "levin22_gwas_HF",

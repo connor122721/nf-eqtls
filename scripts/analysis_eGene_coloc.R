@@ -23,6 +23,7 @@ chromosome <- as.character(args$chromosome)
 genei <- as.character(args$gene)
 
 #setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/");gwas_input="shah20_gwas_HF";eqtl_inpt="MaxPC49";chromosome="chr10";genei="BAG3"
+#setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/");gwas_input="jurgens24_gwas_HF";eqtl_inpt="MaxPC70";chromosome="chr7";genei="FLNC"
 
 # Make sure the GWAS input is correct
 if (gwas_input == "jurgens24_gwas_HF") {
@@ -304,7 +305,9 @@ plot_gwas <- {
 
 # Gene regions subplot!
 library(ggrepel)
+
 gtf.dt <- gtf[chrom==unique(dt1$chromosome)][start %in% min(dt1$pos_hg38):max(dt1$pos_hg38)][common_gene %in% unique(dt$common_gene)]
+
 gene_reg <- {
   
   gtf.dt %>% 
@@ -312,12 +315,16 @@ gene_reg <- {
                y = reorder(common_gene, start),
                yend = reorder(common_gene, start))) +
     geom_segment(color = "lightblue2", linewidth = 4) +
-    geom_text_repel(aes(x = (start + stop) / (2 * 1e6), label = common_gene),
+    geom_text_repel(data = gtf.dt[start %in% (unique(dt1$start)-200000):(unique(dt1$start)+200000)], 
+                    aes(x = (start + stop) / (2 * 1e6), label = common_gene),
               color = "black", size = 3, vjust = -0.5) +
     geom_vline(xintercept = dt1[SNP==lead_rsid]$pos_hg38/1e6, linetype=4, color="red") +
-    theme_minimal() +
-    themei +
+    themei +    
+    theme_classic() +
     theme(aspect.ratio = 0.3, 
+          axis.title.x = element_text(face = "bold", size = 18),
+          axis.text.x = element_text(face = "bold", size = 16),
+          axis.title.y = element_text(face = "bold", size = 18),
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank()) +
     labs(x = "Position (Mbps)", y = "Gene")
