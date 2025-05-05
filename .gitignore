@@ -10,6 +10,7 @@ future*
 *pdf
 *png
 *svg
+*.ipynb
 test*
 test/*
 list.eqtls*
