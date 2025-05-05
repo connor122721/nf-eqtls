@@ -143,6 +143,8 @@ coloc_chrom <- function(chr) {
                        PP.H4=coloc_res$summary["PP.H4.abf"],
                        H4_H3_ratio=coloc_res$summary["PP.H4.abf"]/coloc_res$summary["PP.H3.abf"],
                        sentinel=sent,
+                       sent_maf=sentinel_combined$maf,
+                       sent_dist_TSS=sentinel_combined$start_distance,
                        beta_qtl=sentinel_combined$slope,
                        betase_qtl=sentinel_combined$slope_se,
                        beta_gwas=sentinel_combined$beta_gwas,

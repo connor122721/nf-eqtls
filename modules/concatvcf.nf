@@ -3,6 +3,8 @@
  * Concatenates all per-chromosome thinned VCFs
  */
 process ConcatVCF {
+
+    container 'library://connmurr243/wgs/wgs_common:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}", mode: 'copy'
 
@@ -16,8 +18,6 @@ process ConcatVCF {
   
     script:
         """
-        module load bcftools
-
         echo "Concatenating the following files:"
         for vcf in ${input_list_vcfs}; do
           echo " \$vcf"

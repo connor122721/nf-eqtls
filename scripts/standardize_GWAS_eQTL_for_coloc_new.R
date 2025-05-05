@@ -144,8 +144,7 @@ if ("beta" %in% colnames(gwas)) {
   gwas[allele_flip == TRUE, c("A1", "A2") := list(A2, A1)]
 }
 
-# Optionally, if you want to see a summary of the allele check after flipping,
-# you can recalculate a check column
+# allele check after flipping,
 gwas[, effect_allele_correct := (toupper(A1) == toupper(ref_allele))]
 print("Summary of effect allele check (TRUE means A1 matches the reference allele):")
 print(table(gwas$effect_allele_correct))

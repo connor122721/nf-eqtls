@@ -16,5 +16,6 @@ list.eqtls*
 *html
 report.html
 scripts/.ipynb_checkpoints
-.vscode/
+.vscode*
 report.html
+*.sif

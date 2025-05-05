@@ -37,6 +37,7 @@ chroms = Channel
 // Removes indels of length > 50 and minimum allele count of 1.
 process ExtractAndIndexVCF {
 
+    container 'library://connmurr243/wgs/wgs_common:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/raw", mode: 'copy'
 
@@ -50,9 +51,6 @@ process ExtractAndIndexVCF {
 
     script:
         """
-        module load bcftools
-        module load htslib
-
         echo "Generating new file for chromosome: ${chromosome}"
 
         bcftools view \\
@@ -74,6 +72,7 @@ process ExtractAndIndexVCF {
 // LDPruning
 process LDPruning {
 
+    container 'library://connmurr243/wgs/wgs_common:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/ldPrune", mode: 'copy'
 
@@ -89,9 +88,6 @@ process LDPruning {
 
     script:
         """
-        module load plink/2.00a20230303
-        module load htslib
-
         # First pass: generate prune.in / prune.out
         plink2 \\
             --memory 18000 \\
@@ -124,6 +120,7 @@ process LDPruning {
 // Thins the pruned VCF using plink2 --bp-space 250
 process VCFThin {
 
+    container 'library://connmurr243/wgs/wgs_common:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/thin", mode: 'copy'
 
@@ -139,9 +136,6 @@ process VCFThin {
 
     script:
         """
-        module load plink/2.00a20230303
-        module load htslib
-
         plink2 \\
             --memory 18000 \\
             --threads ${params.threads} \\
@@ -171,6 +165,7 @@ include { normalize_and_pca; tmm_pipeline } from './modules/mainRNA_flow.nf'
 
 // Modules to run for cis/cis-susie/trans-eQTL mapping 
 include { CreateBedFiles } from './modules/makeBedPlink.nf'
+include { FilterBedFiles } from './modules/makeBedPlink.nf'
 include { TensorQTLSubmission } from './modules/tensorqtl.nf'
 include { TensorQTLNominal } from './modules/tensorqtl.nf'
 include { TensorQTLSusie } from './modules/tensorQTL_susie.nf'
@@ -254,9 +249,12 @@ workflow {
 
     // 1) Make bedfiles
     bed = CreateBedFiles(chroms, reform.sample_list)
+    bed_tqtl = FilterBedFiles(chroms, reform.sample_list)
     plink_prefix_ch = bed.plink_prefix
+    plink_prefix_ch_tqtl = bed_tqtl.plink_prefix
 
     // Number of RNA PCs to test
+    // pcs = Channel.from(1..100)
     pcs = Channel.from(1..100)
 
     // Combine all chromosome / PC 
@@ -299,11 +297,14 @@ workflow {
     TensorQTLSusie(tensorqtl_input_nom_ch
                    .combine(TensorQTLNominal.out.collect()))
 
-    // 4C) Run tensorQTL - trans-eQTL
-    TensorTransQTL(tensorqtl_input_nom_ch)
+    // Run tensorQTL - nominal p-value
+    chrom_covs
+        .combine(plink_prefix_ch_tqtl, by: 0)
+        .filter { it[2] == 70 }  // Filter for PC equal to best k
+        .set { tensorqtl_input_nom_ch_tqtl }
 
-    // 4D) Run tensorQTL - trans-eQTL SuSiE
-    // TensorTransQTLSusie(tensorqtl_input_nom_ch)  
+    // 4C) Run tensorQTL - trans-eQTL
+    TensorTransQTL(tensorqtl_input_nom_ch_tqtl)
     
     // 5) Prep GWAS for coloc
     prepGWAS_out_levin = prepGWAS_levin(params.gwas_levin,

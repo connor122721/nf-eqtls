@@ -5,10 +5,7 @@
 
 # Libraries
 library(data.table)
-library(coloc)
 library(tidyverse)
-library(locuscomparer)
-library(foreach)
 library(argparse)
 
 # Argument parser

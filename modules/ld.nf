@@ -5,6 +5,7 @@ nextflow.enable.dsl=2
 // Run linkage analyses
 process LD_CandidateGenes {
 
+    container 'library://connmurr243/wgs/wgs_common:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/linkage", mode: 'copy'
     threads = 1
@@ -26,10 +27,6 @@ process LD_CandidateGenes {
   
     script:
         """
-        # Modules to load
-        module load bcftools
-        module load plink/1.90b7.2
-
         # Samples used
         samples=${params.out}/eqtl/topchef_samples_1_15_25.txt
 

@@ -8,6 +8,8 @@ nextflow.enable.dsl=2
 
 // Run King - kinship analyses
 process King {
+
+    container 'library://connmurr243/wgs/wgs_common:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/king", mode: 'copy'
 
@@ -20,8 +22,6 @@ process King {
   
     script:
         """
-        module load plink
-
         # Convert filtered VCF to bed - also filter MAF > 0.01
         plink2 \\
             --memory 18000 \\
@@ -36,7 +36,7 @@ process King {
             --out ${params.king_bed_out}
 
         # Run king on bed
-        ~/king \\
+        king \\
             -b ${params.king_bed_out}.bed \\
             --degree 5 \\
             --related \\

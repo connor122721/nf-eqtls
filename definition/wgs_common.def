@@ -1,0 +1,56 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%environment
+    export DEBIAN_FRONTEND=noninteractive
+    export LC_ALL=C.UTF-8
+    export PATH=/usr/local/bin:$PATH
+
+%post
+    set -e -x
+
+    # Core system + bio tools + runtime libs for king
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libncurses5-dev liblzma-dev libxml2-dev libssl-dev \
+        unzip libgsl-dev libcurl4-openssl-dev \
+        libbz2-dev zlib1g-dev \
+        bcftools vcftools bedtools samtools libgomp1 \
+        ca-certificates tar gzip wget bzip2 build-essential autoconf \
+        libquadmath0 libgfortran5 && \
+    rm -rf /var/lib/apt/lists/*
+
+    # PLINK v1.9
+    PLINK_ZIP="plink_linux_i686_20241022.zip"
+    wget -q https://s3.amazonaws.com/plink1-assets/${PLINK_ZIP} -O /tmp/${PLINK_ZIP} && \
+      unzip -q /tmp/${PLINK_ZIP} -d /usr/local/bin && \
+      chmod +x /usr/local/bin/plink && \
+      rm /tmp/${PLINK_ZIP}
+
+    # Plink v2a
+    PLINK2_ZIP="plink2_linux_x86_64_20250420.zip"
+    wget -q https://s3.amazonaws.com/plink2-assets/alpha6/${PLINK2_ZIP} -O /tmp/${PLINK2_ZIP} && \
+      unzip -q /tmp/${PLINK2_ZIP} -d /usr/local/bin && \
+      chmod +x /usr/local/bin/plink2 && \
+      rm /tmp/${PLINK2_ZIP} 
+
+    # KING kinship software
+    KING_TAR="Linux-king.tar.gz"
+    wget -q https://www.kingrelatedness.com/${KING_TAR} -O /tmp/${KING_TAR} && \
+      tar -xzf /tmp/${KING_TAR} -C /usr/local/bin && \
+      chmod +x /usr/local/bin/king && \
+      rm /tmp/${KING_TAR}
+
+    # HTSlib
+    HTSLIB_VERSION="1.21"
+    HTSLIB_TAR="htslib-${HTSLIB_VERSION}.tar.bz2"
+    wget -q "https://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/${HTSLIB_TAR}" \
+      -O /tmp/${HTSLIB_TAR} && \
+    tar -xjf /tmp/${HTSLIB_TAR} -C /tmp && \
+    cd /tmp/htslib-${HTSLIB_VERSION} && \
+    ./configure --prefix=/usr/local && \
+    make && make install && \
+    cd / && rm -rf /tmp/htslib-${HTSLIB_VERSION} /tmp/${HTSLIB_TAR}
+
+%runscript
+    exec "$@"
