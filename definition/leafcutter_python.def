@@ -1,0 +1,27 @@
+Bootstrap: docker
+From: mambaorg/micromamba:latest
+
+%environment
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export CONDA_DEFAULT_ENV=leafcutter
+    export PATH=/opt/conda/envs/leafcutter/bin:$PATH
+    export DEBIAN_FRONTEND=noninteractive
+    export LC_ALL=C.UTF-8
+
+%post
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:$PATH
+
+    # Create a new named environment
+    micromamba create -y -n leafcutter -c conda-forge \
+        python=3.11 \
+        numpy pandas scipy matplotlib seaborn \
+        scikit-learn
+
+    # Activate env at runtime (optional in case needed)
+    echo 'export PATH=/opt/conda/envs/leafcutter/bin:$PATH' >> /environment
+    
+%runscript
+    unset PYTHONPATH
+    export PATH=/opt/conda/envs/leafcutter/bin:$PATH
+    exec python "$@"

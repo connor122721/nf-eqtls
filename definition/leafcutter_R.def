@@ -18,15 +18,10 @@ From: rocker/tidyverse:4.3.1
         >> /root/.Rprofile
 
     # Install R packages
-    Rscript -e "install.packages(c('remotes','devtools','ggforce','BiocManager','foreach',
-      'parallel','purrr','FactoMineR','susieR','data.table',
-      'argparse','ggrepel','patchwork','httr','arrow'),
+    Rscript -e "install.packages(c('remotes','devtools','BiocManager'),
       dependencies=TRUE)"
 
-    Rscript -e "remotes::install_github('chr1swallace/coloc@main')"
-    Rscript -e "BiocManager::install('SeqArray', ask=FALSE, update=FALSE)"
-    Rscript -e "BiocManager::install('SNPRelate', ask=FALSE, update=FALSE)"
-    Rscript -e "devtools::install_github('heatherjzhou/PCAForQTL')"
+    Rscript -e "devtools::install_github("davidaknowles/leafcutter/leafcutter")"
 
 %runscript
     exec R "$@"
