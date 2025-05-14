@@ -1,3 +1,7 @@
+#!/usr/bin/env nextflow
+
+nextflow.enable.dsl=2
+
 // Run regtools
 process runRegtools {
 
@@ -53,7 +57,7 @@ process runLeafcutterCluster {
         # Run clustering algorithm
         python ${params.scripts_dir}/leafcutter_cluster_regtools.py \\
             -j ${chrom}.junc.txt \\
-            -m 50 \\
+            -m 30 \\
             -o ${chrom} \\
             -l 500000
         """
@@ -64,33 +68,40 @@ process reformatLeaf {
 
     container 'docker://francois4/leafcutter:latest'
     shell = '/usr/bin/env bash'
-    publishDir "${params.out}/splicing/cluster", mode: 'symlink'
+    publishDir "${params.out}/splicing/sqtl", mode: 'symlink'
     memory = '5 GB'
     threads = 1
 
     input:
-        tuple path(juncFiles),
-              val(chrom)
+        path(juncFiles)
 
     output:
-        path("*perind.counts.gz")
+        path("*qqnorm_chr*")
+        path("*counts.gz.PCs")
+        path("*phen_chr*")
 
     script:
         """
-        # Create list of junction files
-        ls *${chrom}.junc > ${chrom}.junc.txt
+        # Create merged junction files
+        zcat chr1_perind.counts.gz | head -n 1 > all_clusters.counts
+        sed -i 's/.chr1//g' all_clusters.counts # Replace Chromosome from sample names
+        for file in chr*_perind.counts.gz; do
+            zcat "\${file}" | tail -n +2 >> all_clusters.counts
+        done
+        gzip all_clusters.counts
 
         # Run clustering algorithm
-        python ${params.scripts_dir}/leafcutter_cluster_regtools.py \\
-            -j ${chrom}.junc.txt \\
-            -m 50 \\
-            -o ${chrom} \\
-            -l 500000
+        python3 ${params.scripts_dir}/prepare_phenotype_table_annotated.py \\
+            all_clusters.counts.gz \\
+            --gtf "/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.genes.collapsed_only.gtf" \\
+            -p 70
         """
 }
 
 // Run splicing analyses for each chromosome
 workflow {
+
+    // STEP 1: Splicing quantfication and set up
     
     // Input parameters
     meta_ch = Channel
@@ -131,4 +142,10 @@ workflow {
 
     // Run Leafcutter clustering
     runLeafcutterCluster(reg_grouped)
+
+    // Reformat junction files for QTL mapping
+    reformatLeaf(runLeafcutterCluster.out.collect())
+
+    // STEPs 2: sQTL Mapping 
+
 }
