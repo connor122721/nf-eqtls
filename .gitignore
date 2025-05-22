@@ -19,4 +19,7 @@ report.html
 scripts/.ipynb_checkpoints
 .vscode*
 report.html
+
+# large Files
 *.sif
+singularity*
