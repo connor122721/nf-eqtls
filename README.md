@@ -85,6 +85,20 @@ nextflow run main_eQTL.nf -profile slurm -bg
 ## Configuration
 The pipeline can be configured using the ```nextflow.config``` file. You can specify any parameters such as input files, output directories, and resource requirements like memory and CPUs.
 
+## Splicing (LeafCutter) Notes
+You will need to modify the `make_exonList.py` script for your specific GENCODE GTF version you are using, this script will output a list of exons used in the Leafcutter pipeline.
+
+```python
+ import pandas as pd
+import qtl.annotation
+
+annot = qtl.annotation.Annotation('gencode.v34.GRCh38.annotation.gtf')
+exon_df = pd.DataFrame([[g.chr, e.start_pos, e.end_pos, g.strand, g.id, g.name]
+                        for g in annot.genes for e in g.transcripts[0].exons],
+                       columns=['chr', 'start', 'end', 'strand', 'gene_id', 'gene_name'])
+exon_df.to_csv('gencode.v34.GRCh38.genes.exons.txt.gz', sep='\t', index=False)
+```
+
 ## Contributing
 Contributions are welcome! I am still learning *NextFlow* and would love to learn more. Please open an issue or submit a pull request on GitHub.
 

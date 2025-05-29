@@ -42,9 +42,9 @@ process runLeafcutterCluster {
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/splicing/cluster", mode: 'copy'
     errorStrategy = 'ignore'
-    time = '5h'
-    memory = '2 GB'
-    threads = 1
+    time = '10h'
+    memory = '15 GB'
+    threads = 4
 
     input:
         tuple path(juncFiles),
@@ -132,7 +132,7 @@ process runLeafcutterClusterGTEx {
             ${params.gtf} \\
             "topchef" \\
             ${params.sample_participant_map} \\
-            --num_pcs 100
+            --num_pcs 100 \\
             --leafcutter_dir ${params.scripts_dir}
         """
 }
@@ -174,15 +174,14 @@ workflow {
     runRegtools(sample_chrom_bam)
 
     // Collect junction files
-    runRegtools.out
-      .groupTuple(by: 1)
-      .set { reg_grouped }
+    Channel 
+        runRegtools.out
+        .map { it[0] } // Extract junction files
+        .collect()
+        .set { reg_grouped }
 
     // Run Leafcutter clustering
-    runLeafcutterCluster(reg_grouped)
-
-    // Reformat junction files for QTL mapping
-    reformatLeaf(runLeafcutterCluster.out.collect())
+    runLeafcutterClusterGTEx(reg_grouped)
 
     // STEPs 2: sQTL Mapping 
 
