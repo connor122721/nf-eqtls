@@ -1,6 +1,3 @@
-# From: https://github.com/broadinstitute/gtex-pipeline/blob/9b99d82f8836031781019ce05ffb720280ef4400/qtl/leafcutter/src/cluster_prepare_fastqtl.py
-# May 29th, 2025
-
 from __future__ import print_function
 import pandas as pd
 import numpy as np
@@ -15,6 +12,7 @@ import shutil
 import glob
 from sklearn.decomposition import PCA
 import qtl.io
+
 
 @contextlib.contextmanager
 def cd(cd_path):
@@ -59,12 +57,12 @@ def map_cluster_to_genes(intron_df, exon_df, strict=True, verbose=False):
         matches_df.append(all_matches)
     matches_df = pd.concat(matches_df).reset_index(drop=True)
     clu_s = matches_df.groupby('clu', sort=True).apply(
-        lambda x: ','.join(x['gene_id']), include_groups=False).rename('genes')
+        lambda x: ','.join(x['gene_id'])).rename('genes')
 
     if verbose:
         total_clusters = intron_df['clu'].nunique()
         print(f"Total clusters: {total_clusters}")
-        print(f"  * with ≥1 match: {matches_df['clu'].nunique()} ({matches_df['clu'].nunique()/total_clusters*100:.2f}%)")
+        print(f"  * with >=1 match: {matches_df['clu'].nunique()} ({matches_df['clu'].nunique()/total_clusters*100:.2f}%)")
         print(f"  * unpaired: {num_unpaired} ({num_unpaired/total_clusters*100:.2f}%)")
         print(f"  * unmatched: {num_unmatched} ({num_unmatched/total_clusters*100:.2f}%)")
 
@@ -102,7 +100,7 @@ def run_leafcutter_clustering(junc_files_list, leafcutter_dir, prefix, output_di
 
 def filter_counts(counts_df):
     calculate_frac = lambda x: float(x[0])/float(x[1]) if x[1] > 0 else 0
-    frac_df = counts_df.map(lambda x: calculate_frac([int(i) for i in x.split('/')]))
+    frac_df = counts_df.applymap(lambda x: calculate_frac([int(i) for i in x.split('/')]))
     pct_zero = (frac_df == 0).sum(1) / frac_df.shape[1]  # for zero counts, frac is zero
     n_unique = frac_df.apply(lambda x: len(x.unique()), axis=1)
     zscore_df = ((frac_df.T-frac_df.mean(1)) / frac_df.std(1)).T
@@ -229,7 +227,7 @@ if __name__=='__main__':
     qtl.io.write_bed(gene_bed_df, os.path.join(args.output_dir, f'{args.prefix}.leafcutter.bed.gz'))
     gene_bed_df[['start', 'end']] = gene_bed_df[['start', 'end']].astype(np.int32)
     gene_bed_df[gene_bed_df.columns[4:]] = gene_bed_df[gene_bed_df.columns[4:]].astype(np.float32)
-    gene_bed_df.to_parquet(os.path.join(args.output_dir, f'{args.prefix}.leafcutter.bed.parquet'))
+    #gene_bed_df.to_parquet(os.path.join(args.output_dir, f'{args.prefix}.leafcutter.bed.parquet'))
     pd.Series(group_s).sort_values().to_csv(
         os.path.join(args.output_dir, f'{args.prefix}.leafcutter.phenotype_groups.txt'),
         sep='\t', header=False)

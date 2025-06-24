@@ -2,7 +2,7 @@
 
 nextflow.enable.dsl=2
 
-// Run regtools
+// 1) Run regtools
 process runRegtools {
 
     container 'docker://griffithlab/regtools:release-1.0.0'
@@ -16,94 +16,23 @@ process runRegtools {
     input:
         tuple val(rnaid),
               val(dnaid),
-              val(chrom),
               path(bam),
               path(bamIndex)
 
     output:
-        tuple path("*junc"),
-              val(chrom)
+        path("*junc")
   
     script:
         """
         regtools junctions extract \\
             -a 8 -m 50 -M 500000 \\
             -s XS \\
-            -r ${chrom} \\
             ${bam} \\
-            -o ${dnaid}.${chrom}.junc
+            -o ${dnaid}.junc
         """
 }
 
-// Intron clustering
-process runLeafcutterCluster {
-
-    container 'docker://francois4/leafcutter:latest'
-    shell = '/usr/bin/env bash'
-    publishDir "${params.out}/splicing/cluster", mode: 'copy'
-    errorStrategy = 'ignore'
-    time = '10h'
-    memory = '15 GB'
-    threads = 4
-
-    input:
-        tuple path(juncFiles),
-              val(chrom)
-
-    output:
-        path("*perind.counts.gz")
-
-    script:
-        """
-        # Create list of junction files
-        ls *${chrom}.junc > ${chrom}.junc.txt
-
-        # Run clustering algorithm
-        python3 ${params.scripts_dir}/leafcutter_cluster_regtools.py \\
-            -j ${chrom}.junc.txt \\
-            -m 30 \\
-            -o ${chrom} \\
-            -l 500000
-        """
-}
-
-// Reformatting junction files for QTL mapping
-process reformatLeaf {
-
-    container 'docker://francois4/leafcutter:latest'
-    shell = '/usr/bin/env bash'
-    publishDir "${params.out}/splicing/sqtl", mode: 'copy'
-    errorStrategy = 'ignore'
-    memory = '10 GB'
-    threads = 1
-
-    input:
-        path(juncFiles)
-
-    output:
-        path("*qqnorm_chr*")
-        path("*counts.gz.PCs")
-        path("*phen_chr*")
-
-    script:
-        """
-        # Create merged junction files
-        zcat chr1_perind.counts.gz | head -n 1 > all_clusters.counts
-        sed -i 's/.chr1//g' all_clusters.counts # Replace Chromosome from sample names
-        for file in chr*_perind.counts.gz; do
-            zcat "\${file}" | tail -n +2 >> all_clusters.counts
-        done
-        gzip all_clusters.counts
-
-        # Run clustering algorithm
-        python3 ${params.scripts_dir}/prepare_phenotype_table_annotated.py \\
-            all_clusters.counts.gz \\
-            --gtf "/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.genes.collapsed_only.gtf" \\
-            -p 100
-        """
-}
-
-// Reformatting junction files for QTL mapping using GTEx scripts
+// 2) Clustering junction files for QTL mapping using GTEx scripts
 process runLeafcutterClusterGTEx {
 
     container 'docker://francois4/leafcutter:latest'
@@ -111,14 +40,14 @@ process runLeafcutterClusterGTEx {
     publishDir "${params.out}/splicing/cluster", mode: 'copy'
     errorStrategy = 'ignore'
     time = '5h'
-    memory = '2 GB'
-    threads = 1
+    memory = '50 GB'
+    threads = 4
 
     input:
         path(juncFiles)
 
     output:
-        path("*perind.counts.gz")
+        path("topchef*")
 
     script:
         """
@@ -132,19 +61,47 @@ process runLeafcutterClusterGTEx {
             ${params.gtf} \\
             "topchef" \\
             ${params.sample_participant_map} \\
-            --num_pcs 100 \\
+            --num_pcs 10 \\
+            --min_clu_reads 5 \\
+            --min_clu_ratio 0.000001 \\
             --leafcutter_dir ${params.scripts_dir}
         """
 }
 
-// TensorQTL submission process
+// 3) Reformatting junction files for QTL mapping
+process reformatLeaf {
+
+    container 'library://connmurr243/rcoloc/rtidycoloc'
+    shell = '/usr/bin/env bash'
+    publishDir "${params.out}/splicing/cluster", mode: 'copy'
+    errorStrategy = 'ignore'
+    memory = '15 GB'
+    threads = 1
+
+    input:
+        path("*")
+
+    output:
+        path("*splicepc*")
+
+    script:
+        """
+        # Create merged data
+        Rscript ${params.scripts_dir}/reformat_sqtl.R \\
+            --metadata ${params.metadata} \\
+            --pca *leafcutter.PCs.txt \\
+            --pca_snp ${params.out}/pca/filt_dna_pc*
+        """
+}
+
+// 4) TensorQTL submission process - saturation analyses for covariate models
 process TensorQTLSubmission {
 
+    container 'library://porchard/default/tensorqtl'
     shell = '/usr/bin/env bash'
-    publishDir "${params.out}/splicing/tensor_sqtls", mode: 'copy'
+    publishDir "${params.out}/splicing/sqtls", mode: 'copy'
     threads = 8
     memory = '30 GB'
-    // debug true
 
     input:
         tuple val(chromosome), 
@@ -155,26 +112,23 @@ process TensorQTLSubmission {
 
     output:
         tuple path("*cis_qtl.txt.gz"),
-            val("${params.out}/tensorqtl"), emit: tensorqtl_out 
+            val("${params.out}/splicing/sqtls"), emit: tensorqtl_out 
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate qtl
-
         # Use tensorQTL based on chromosome
         python3 -m tensorqtl \\
             ${params.out}/bedfiles/${plink_prefix} \\
-            ${params.out}/eqtl/*.sort.bed \\
-            topchef_${chromosome}_MaxPC${pc} \\
+            ${params.out}/splicing/cluster/*leafcutter.bed.gz \\
+            topchefSplice_${chromosome}_MaxPC${pc} \\
             --maf_threshold 0.01 \\
-            --covariates ${params.out}/eqtl/${covariate} \\
+            --covariates ${params.out}/splicing/cluster/${covariate} \\
             --mode cis
         """
 }
 
-// TensorQTL submission process for nominal p-value
-// These are very large output files so we will only use a subset
+// 5) TensorQTL submission process for nominal p-value
+// These are very large output files so we will only use a subset of the saturation tests
 process TensorQTLNominal {
 
     shell = '/usr/bin/env bash'
@@ -210,6 +164,108 @@ process TensorQTLNominal {
         """
 }
 
+// Other scripts for alternative analyses
+// Intron clustering
+process runLeafcutterCluster {
+
+    container 'docker://francois4/leafcutter:latest'
+    shell = '/usr/bin/env bash'
+    publishDir "${params.out}/splicing/cluster", mode: 'copy'
+    errorStrategy = 'ignore'
+    time = '10h'
+    memory = '15 GB'
+    threads = 4
+
+    input:
+        tuple path(juncFiles),
+              val(chrom)
+
+    output:
+        path("*perind.counts.gz")
+
+    script:
+        """
+        # Create list of junction files
+        ls *${chrom}.junc > ${chrom}.junc.txt
+
+        # Run clustering algorithm
+        python3 ${params.scripts_dir}/leafcutter_cluster_regtools.py \\
+            -j ${chrom}.junc.txt \\
+            -m 30 \\
+            -o ${chrom} \\
+            -l 500000
+        """
+}
+
+// Reformatting junction files for QTL mapping
+process OLD_reformatLeaf {
+
+    container 'docker://francois4/leafcutter:latest'
+    shell = '/usr/bin/env bash'
+    publishDir "${params.out}/splicing/sqtl", mode: 'copy'
+    errorStrategy = 'ignore'
+    memory = '10 GB'
+    threads = 1
+
+    input:
+        path(juncFiles)
+
+    output:
+        path("*qqnorm_chr*")
+        path("*counts.gz.PCs")
+        path("*phen_chr*")
+
+    script:
+        """
+        # Create merged junction files
+        zcat chr1_perind.counts.gz | head -n 1 > all_clusters.counts
+        sed -i 's/.chr1//g' all_clusters.counts # Replace Chromosome from sample names
+        for file in chr*_perind.counts.gz; do
+            zcat "\${file}" | tail -n +2 >> all_clusters.counts
+        done
+        gzip all_clusters.counts
+
+        # Run clustering algorithm
+        python3 ${params.scripts_dir}/prepare_phenotype_table_annotated.py \\
+            all_clusters.counts.gz \\
+            --gtf "/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.genes.collapsed_only.gtf" \\
+            -p 100
+        """
+}
+
+// Regtools split by chromosome
+process runRegtoolsChrom {
+
+    container 'docker://griffithlab/regtools:release-1.0.0'
+    shell = '/usr/bin/env bash'
+    publishDir "${params.out}/splicing/junc", mode: 'copy'
+    errorStrategy = 'ignore'
+    time = '3h'
+    memory = '2 GB'
+    threads = 1
+
+    input:
+        tuple val(rnaid),
+              val(dnaid),
+              val(chrom),
+              path(bam),
+              path(bamIndex)
+
+    output:
+        tuple path("*junc"),
+              val(chrom)
+  
+    script:
+        """
+        regtools junctions extract \\
+            -a 8 -m 50 -M 500000 \\
+            -s XS \\
+            -r ${chrom} \\
+            ${bam} \\
+            -o ${dnaid}.${chrom}.junc
+        """
+}
+
 // Run splicing analyses for each chromosome
 workflow {
 
@@ -217,7 +273,8 @@ workflow {
     
     // Input parameters
     meta_ch = Channel
-        .fromPath('../metadata/metadata_10_17_2024_CSM.txt')
+        //.fromPath('../metadata/metadata_10_17_2024_CSM.txt')
+        .fromPath('../metadata/metadata_6_17_2025_CSM_reduced.txt')
         .splitCsv(strip: true, sep: '\t', header: true)
         .map { row -> tuple(row.SAMPLE_ID_NWD.trim(), 
                             row.SAMPLE_ID_TOR.trim())}
@@ -235,27 +292,48 @@ workflow {
         .map { idx -> "chr${idx}" }
 
     // Cross‑product
-    sample_chrom = samples.combine(chroms)
+    //sample_chrom = samples.combine(chroms)
 
     // Write out bam list
-    sample_chrom_bam = sample_chrom.map { rnaID, dnaID, chr ->
+    sample_bam = samples.map { rnaID, dnaID ->
         bamPath = "/standard/vol185/TOPMed/TOPCHef/bams/${dnaID}.Aligned.sortedByCoord.out.md.bam"
         baiPath = "/standard/vol185/TOPMed/TOPCHef/bams/${dnaID}.Aligned.sortedByCoord.out.md.bam.bai"
-        tuple(rnaID, dnaID, chr, bamPath, baiPath)}
+        tuple(rnaID, dnaID, bamPath, baiPath)}
 
     // Run regtools
-    runRegtools(sample_chrom_bam)
+    runRegtools(sample_bam)
 
     // Collect junction files
     Channel 
         runRegtools.out
-        .map { it[0] } // Extract junction files
         .collect()
         .set { reg_grouped }
 
     // Run Leafcutter clustering
     runLeafcutterClusterGTEx(reg_grouped)
 
+    // Reformat junction files for QTL mapping
+    reformatLeaf(runLeafcutterClusterGTEx.out)
+
     // STEPs 2: sQTL Mapping 
+
+    // Number of Splicing PCs to test
+    pcs = Channel.from(1..100)
+
+    // Combine all chromosome / PC 
+    chrom_covs = chroms
+        .combine(pcs)
+        .map { [it[0], "topchef_cov_RNApc1_${it[1]}_1.15.25.txt", it[1]] }
+
+    // Submit TensorQTL jobs
+    tensorqtl_input_ch = chrom_covs
+        .combine(plink_prefix_ch, by: 0)
+
+
+    reformatLeaf.out
+        .map { file -> tuple(file, file.baseName.split('_')[0], file.baseName.split('_')[1]) }
+        .map { file, covariate, pc -> tuple(file, covariate, pc, "${file.baseName}_bed", "topchef_${file.baseName}") }
+    
+    TensorQTLSubmission()
 
 }

@@ -140,6 +140,7 @@ def main(ratio_file, chroms, blacklist_chroms, pcs=50):
 
     # qqnorms on the columns
     matrix = np.array(valRows)
+    print(f"matrix shape: {matrix.shape}")
     for i in range(len(matrix[0,:])):
         matrix[:,i] = qqnorm(matrix[:,i])
 
