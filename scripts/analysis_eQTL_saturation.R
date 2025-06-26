@@ -17,7 +17,13 @@ plan(multisession, workers = 4)
 parser <- ArgumentParser()
 parser$add_argument("--list_of_eqtls", required=TRUE, help="List of TensorQTL output to analyze.")
 parser$add_argument("--gtf", required=TRUE, help="Streamlined GTF object.")
+parser$add_argument("--sqtl", action='store_true', required=FALSE, help="Make script usable with sQTL object.")
 args <- parser$parse_args()
+
+#setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/work/a4/0d0a1fa77f691416c38bbad47371d7")
+#qtl.files=fread("cis_sqtl.list", header=F)
+#gene.gtf=read_rds("/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.streamlined.RDS")
+#sqtl=TRUE
 
 qtl.files <- fread(args$list_of_eqtls, header=F)
 gtf <- args$gtf
@@ -47,15 +53,30 @@ qtl.dt <- data.table(qtl.dt %>%
 # Read in GTF
 gene.gtf <- data.table(readRDS(gtf))
 
-# Add gene metadata
-qtl.dt <- data.table(qtl.dt %>% 
+# Conditional statement for gene metadata
+if (args$sqtl == "TRUE") {
+  
+  # sQTLs add gene metadata
+  qtl.dt <- data.table(qtl.dt %>% 
+             mutate(phenotype_id = str_remove_all(tstrsplit(phenotype_id, ":")[[5]], ".")) %>%  
              left_join(gene.gtf %>% 
-                      select(-c(file,V9)), 
+                      select(-c(file, V9)), 
                       by = c("phenotype_id" = "gene_edit", 
                              "chrom"="chrom")))
+  prefix="sqtl"
+  
+  } else {
+  # eQTLs add gene metadata
+  qtl.dt <- data.table(qtl.dt %>% 
+             left_join(gene.gtf %>% 
+                      select(-c(file, V9)), 
+                      by = c("phenotype_id" = "gene_edit", 
+                             "chrom"="chrom")))
+  prefix="eqtl"
+}
 
 # Output
-saveRDS(qtl.dt, file = "qtl.rna.saturation.rds")
+saveRDS(qtl.dt, file = paste0(prefix, ".rna.saturation.rds"))
 
 #### Analysis ####
 
@@ -67,7 +88,8 @@ themei <- {
           axis.title.y = element_text(face = "bold", size = 16),
           axis.text.y = element_text(face = "bold", size = 14),
           legend.text = element_text(face = "bold", size = 14),
-          legend.title = element_text(face = "bold", size = 16)) 
+          legend.title = element_text(face = "bold", size = 16),
+          aspect.ratio = 1) 
 }
 
 # Pvalue cutoff
@@ -83,25 +105,36 @@ qtl.rate <- data.table(qtl.dt %>%
                  mutate(roc = (n - lag(n)) / (maxPC - lag(maxPC))) %>%
                  mutate(roc2 = (roc - lag(roc)) / (maxPC - lag(maxPC))))
 
-# Correlation of significant genes
-qtl.cor <- data.table(qtl.dt %>%
-  mutate(sig = case_when(pval_perm < cutoff ~ 1,
-                         TRUE ~ 0)) %>%  # Filtering for significant genes
-  select(maxPC, phenotype_id, sig) %>%  # Select relevant columns
-  spread(key = maxPC, value = sig)) # Make long to wide matrix
+if (args$sqtl == "TRUE") {
+  
+  # find the index that maximizes second derivative in absolute value:
+  best_k <- which.max(qtl.rate$n)
+  best_maxPC <- qtl.rate$maxPC[best_k]
+  best_maxPC
+  
+} else {
 
-# Pairwise correlations
-cor_matrix <- cor(qtl.cor[,-1], use = "pairwise.complete.obs")
-upper_triangle <- cor_matrix
-upper_triangle[lower.tri(cor_matrix, diag = TRUE)] <- NA  # Mask lower triangle and diagonal
+  # Correlation of significant genes
+  qtl.cor <- data.table(qtl.dt %>%
+    mutate(sig = case_when(pval_perm < cutoff ~ 1,
+                           TRUE ~ 0)) %>%  # Filtering for significant genes
+    select(maxPC, phenotype_id, sig) %>%  # Select relevant columns
+    spread(key = maxPC, value = sig)) # Make long to wide matrix
+  
+  # Pairwise correlations
+  cor_matrix <- cor(qtl.cor[,-1], use = "pairwise.complete.obs")
+  upper_triangle <- cor_matrix
+  upper_triangle[lower.tri(cor_matrix, diag = TRUE)] <- NA  # Mask lower triangle and diagonal
+  
+  # Convert to a data table for viewing
+  cor_list <- as.data.table(as.table(cor_matrix))
+  
+  # find the index that maximizes second derivative in absolute value:
+  best_k <- which.max(qtl.rate$n)
+  best_maxPC <- qtl.rate$maxPC[best_k]
+  best_maxPC
 
-# Convert to a data table for viewing
-cor_list <- as.data.table(as.table(cor_matrix))
-
-# find the index that maximizes second derivative in absolute value:
-best_k <- which.max(qtl.rate$n)
-best_maxPC <- qtl.rate$maxPC[best_k]
-best_maxPC
+}
 
 # eQTL saturation
 p5 <- {
@@ -131,12 +164,12 @@ p6 <- {
 
 # Saturation point
 pp <- (p5 |p6)
-ggsave(plot = pp, "eqtl.saturation.pdf", width = 16, height = 8)
+ggsave(plot = pp, paste0(prefix, ".saturation.pdf"), width = 16, height = 8)
 
 # Output best k
 write.table(
   best_maxPC,
-  file = "best_k_eqtls",
+  file = paste0("best_k_", prefix),
   quote = FALSE,
   row.names = FALSE,
   col.names = FALSE,

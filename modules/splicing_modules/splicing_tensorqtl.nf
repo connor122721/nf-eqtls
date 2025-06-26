@@ -97,7 +97,6 @@ process reformatLeaf {
 // 4) TensorQTL submission process - saturation analyses for covariate models
 process TensorQTLSubmission {
 
-    container 'library://porchard/default/tensorqtl'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/splicing/sqtls", mode: 'copy'
     threads = 8
@@ -107,15 +106,17 @@ process TensorQTLSubmission {
         tuple val(chromosome), 
               val(covariate), 
               val(pc), 
-              path(bed_files),
               val(plink_prefix)    
 
     output:
-        tuple path("*cis_qtl.txt.gz"),
+        tuple path("*qtl.txt.gz"),
             val("${params.out}/splicing/sqtls"), emit: tensorqtl_out 
 
     script:
         """
+        module load miniforge/24.3.0-py3.11
+        source activate qtl
+
         # Use tensorQTL based on chromosome
         python3 -m tensorqtl \\
             ${params.out}/bedfiles/${plink_prefix} \\
@@ -132,7 +133,7 @@ process TensorQTLSubmission {
 process TensorQTLNominal {
 
     shell = '/usr/bin/env bash'
-    publishDir "${params.out}/tensorqtl_nominal", mode: 'copy'
+    publishDir "${params.out}/splicing/sqtls_nominal", mode: 'copy'
     threads = 8
     memory = '30 GB'
 
@@ -140,7 +141,6 @@ process TensorQTLNominal {
         tuple val(chromosome), 
               val(covariate), 
               val(pc), 
-              path(bed_files),
               val(plink_prefix)    
 
     output:
@@ -156,10 +156,10 @@ process TensorQTLNominal {
         # Use tensorQTL based on chromosome
         python3 -m tensorqtl \\
             ${params.out}/bedfiles/${plink_prefix} \\
-            ${params.out}/eqtl/*.sort.bed \\
-            topchef_${chromosome}_MaxPC${pc} \\
+            ${params.out}/splicing/cluster/*leafcutter.bed.gz \\
+            topchefSplice_${chromosome}_MaxPC${pc} \\
             --maf_threshold 0.01 \\
-            --covariates ${params.out}/eqtl/${covariate} \\
+            --covariates ${params.out}/splicing/cluster/${covariate} \\
             --mode cis_nominal
         """
 }
@@ -266,10 +266,17 @@ process runRegtoolsChrom {
         """
 }
 
+// Import modules
+include { analysis_sqtl_saturation } from '../analysis_eqtl_saturation.nf'
+include { runColoc as runColoc_levin } from '../coloc.nf'
+include { runColoc as runColoc_shah } from '../coloc.nf'
+include { runColoc as runColoc_jurgens } from '../coloc.nf'
+include { analysisColoc } from '../coloc.nf'
+
 // Run splicing analyses for each chromosome
 workflow {
 
-    // STEP 1: Splicing quantfication and set up
+    // STEP I: Splicing quantfication and set up
     
     // Input parameters
     meta_ch = Channel
@@ -315,25 +322,71 @@ workflow {
     // Reformat junction files for QTL mapping
     reformatLeaf(runLeafcutterClusterGTEx.out)
 
-    // STEPs 2: sQTL Mapping 
+    // STEPs II: sQTL Mapping 
 
     // Number of Splicing PCs to test
-    pcs = Channel.from(1..100)
+    pcs = Channel.from(1..10)
 
     // Combine all chromosome / PC 
     chrom_covs = chroms
         .combine(pcs)
-        .map { [it[0], "topchef_cov_RNApc1_${it[1]}_1.15.25.txt", it[1]] }
+        .map { [it[0], "topchef_cov_splicepc1_${it[1]}_06.23.25.txt", it[1], "${it[0]}_1.17.25.TOPchef"] }
 
-    // Submit TensorQTL jobs
-    tensorqtl_input_ch = chrom_covs
-        .combine(plink_prefix_ch, by: 0)
+    // Submit TensorQTL - saturation QTL jobs
+    TensorQTLSubmission(chrom_covs)
 
-
-    reformatLeaf.out
-        .map { file -> tuple(file, file.baseName.split('_')[0], file.baseName.split('_')[1]) }
-        .map { file, covariate, pc -> tuple(file, covariate, pc, "${file.baseName}_bed", "topchef_${file.baseName}") }
+    // Extract unique path from TensorQTLSubmission
+    Channel
+        TensorQTLSubmission.out
+        .map { tuple -> tuple[0] }
+        .collect()
+        .set { outi }
     
-    TensorQTLSubmission()
+    // Extract Best-K to run nominal p-value
+    analysis_sqtl_saturation(outi)    
+
+     // Extract Best K
+    analysis_sqtl_saturation.out.bestK
+        .splitText()
+        .set { best_k }
+
+    // Submit TensorQTL nominal jobs - for best model
+    chrom_covs
+        .filter { it[2] == 2 }  // Filter for PC equal to best k
+        .set { tensorqtl_input_nom_ch }
+
+    // Run tensorQTL - cis-nominal p-value
+    TensorQTLNominal(tensorqtl_input_nom_ch)
+
+    // Step III: Colocalization 
+    
+    // Run coloc analyses
+    N_levin = Channel.of(1665481, 516).toList()
+    N_shah = Channel.of(977323, 516).toList()
+    N_jurgens = Channel.of(955733, 516).toList()
+    
+    // Run a
+    colocLevin = runColoc_levin(TensorQTLNominal.out
+                   .combine(best_k)
+                   .combine("levin22")
+                   .combine(N_levin))
+
+    // Run b
+    colocShah = runColoc_shah(TensorQTLNominal.out
+                  .combine(best_k)
+                  .combine("shah20")
+                  .combine(N_shah))
+
+    // Run c
+    colocJurgens = runColoc_jurgens(TensorQTLNominal.out
+                  .combine(best_k)
+                  .combine("jurgens24")
+                  .combine(N_jurgens))
+
+    // Get candidate eGenes that are colocalized and prep for LD analysis
+    //wd1 = colocLevin.outDir.unique().collect()
+    //wd2 = colocShah.outDir.unique().collect()
+    //wd3 = colocJurgens.outDir.unique().collect() 
+    //ColocGenes = analysisColoc(wd1.join(wd2).join(wd3).unique())
 
 }

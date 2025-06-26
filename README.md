@@ -1,4 +1,4 @@
-# QC Pipeline of DNA- and RNA-seq for use in cis-eQTL mapping
+# Pipeline of DNA- and RNA-seq for use in eQTL/sQTL mapping and loci prioritization
 
 ![Nextflow](https://img.shields.io/badge/Nextflow-DSL2-brightgreen?style=for-the-badge)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
@@ -7,7 +7,7 @@
 ![# Languages](https://img.shields.io/github/languages/count/connor122721/nf_eqtls?style=for-the-badge)
 ![Top Language](https://img.shields.io/github/languages/top/connor122721/nf_eqtls?style=for-the-badge)
 
-This repository contains a Nextflow DSL2 pipeline for DNA QC, RNA QC, kinship analysis, and reformatting for use in TensorQTL eQTL mapping. The pipeline performs various steps including extracting and indexing VCF files, calculating linkage disequilibrium, thinning VCF files, and conducting PCA analyses.
+This repository contains a Nextflow DSL2 pipeline for DNA QC, RNA QC, kinship analysis, and reformatting for use in TensorQTL QTL mapping. The pipeline performs various steps including extracting and indexing VCF files, calculating linkage disequilibrium, thinning VCF files, and conducting PCA analyses.
 
 ## Pipeline Overview
 
@@ -31,7 +31,7 @@ graph TD
 
 ## Installation
 To run this pipeline, you need to have *Nextflow* and *Apptainer* installed.
-I am currently building an apptainer container (sandbox) to have all of the following dependencies installed:
+I am currently building/utilizing apptainer containers to have all of the following dependencies installed:
 ```
 - NextFlow
 - Apptainer
@@ -43,20 +43,15 @@ I am currently building an apptainer container (sandbox) to have all of the foll
 - htslib/1.17
 ```
 
-To build a sandbox for this nf pipeline use this apptainer code, make sure ```Singularity.def``` and ```environment.yml``` is within your working directory: 
-```sh
-apptainer build --sandbox nf_topchef Singularity.def
-```
-
 ## Usage
 To run the pipeline, use the following command:
 ```sh
-nextflow run main_process.nf -profile slurm -bg
+nextflow run main_process.nf -profile slurm -resume -bg 
 ```
 
-After finishing the preparation files you can run TensorQTL with the following command:
+After finishing the eQTL files you can run the splicing-QTLs with the following command:
 ```sh
-nextflow run main_eQTL.nf -profile slurm -bg 
+nextflow run modules/splicing_modules/splicing_tensorqtl.nf -profile slurm -resume -bg 
 ```
 
 ## Main Scripts
@@ -89,7 +84,7 @@ The pipeline can be configured using the ```nextflow.config``` file. You can spe
 You will need to modify the `make_exonList.py` script for your specific GENCODE GTF version you are using, this script will output a list of exons used in the Leafcutter pipeline.
 
 ```python
- import pandas as pd
+import pandas as pd
 import qtl.annotation
 
 annot = qtl.annotation.Annotation('gencode.v34.GRCh38.annotation.gtf')
