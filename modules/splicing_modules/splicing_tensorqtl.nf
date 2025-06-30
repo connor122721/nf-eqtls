@@ -268,10 +268,10 @@ process runRegtoolsChrom {
 
 // Import modules
 include { analysis_sqtl_saturation } from '../analysis_eqtl_saturation.nf'
-include { runColoc as runColoc_levin } from '../coloc.nf'
-include { runColoc as runColoc_shah } from '../coloc.nf'
-include { runColoc as runColoc_jurgens } from '../coloc.nf'
-include { analysisColoc } from '../coloc.nf'
+include { runColocSQTL as runColoc_levin } from '../coloc.nf'
+include { runColocSQTL as runColoc_shah } from '../coloc.nf'
+include { runColocSQTL as runColoc_jurgens } from '../coloc.nf'
+include { analysisColocSQTL } from '../coloc.nf'
 
 // Run splicing analyses for each chromosome
 workflow {
@@ -280,8 +280,8 @@ workflow {
     
     // Input parameters
     meta_ch = Channel
-        //.fromPath('../metadata/metadata_10_17_2024_CSM.txt')
-        .fromPath('../metadata/metadata_6_17_2025_CSM_reduced.txt')
+        .fromPath('../metadata/metadata_10_17_2024_CSM.txt')
+        //.fromPath('../metadata/metadata_6_17_2025_CSM_reduced.txt')
         .splitCsv(strip: true, sep: '\t', header: true)
         .map { row -> tuple(row.SAMPLE_ID_NWD.trim(), 
                             row.SAMPLE_ID_TOR.trim())}
@@ -364,29 +364,32 @@ workflow {
     N_levin = Channel.of(1665481, 516).toList()
     N_shah = Channel.of(977323, 516).toList()
     N_jurgens = Channel.of(955733, 516).toList()
-    
+    pre_lev = Channel.of("levin22")
+    pre_shah = Channel.of("shah20")
+    pre_jurgens = Channel.of("jurgens24")
+
     // Run a
     colocLevin = runColoc_levin(TensorQTLNominal.out
                    .combine(best_k)
-                   .combine("levin22")
+                   .combine(pre_lev)
                    .combine(N_levin))
 
     // Run b
     colocShah = runColoc_shah(TensorQTLNominal.out
                   .combine(best_k)
-                  .combine("shah20")
+                  .combine(pre_shah)
                   .combine(N_shah))
 
     // Run c
     colocJurgens = runColoc_jurgens(TensorQTLNominal.out
                   .combine(best_k)
-                  .combine("jurgens24")
+                  .combine(pre_jurgens)
                   .combine(N_jurgens))
 
     // Get candidate eGenes that are colocalized and prep for LD analysis
-    //wd1 = colocLevin.outDir.unique().collect()
-    //wd2 = colocShah.outDir.unique().collect()
-    //wd3 = colocJurgens.outDir.unique().collect() 
-    //ColocGenes = analysisColoc(wd1.join(wd2).join(wd3).unique())
+    wd1 = colocLevin.outDir.unique().collect()
+    wd2 = colocShah.outDir.unique().collect()
+    wd3 = colocJurgens.outDir.unique().collect() 
+    ColocGenes = analysisColocSQTL(wd1.join(wd2).join(wd3).unique())
 
 }

@@ -13,7 +13,7 @@ library(argparse)
 # Argument parser
 parser <- ArgumentParser()
 parser$add_argument("--gwas", required=TRUE, help="Processed GWAS summary statistics.")
-parser$add_argument("--eqtl", required=TRUE, help="cis-eQTL statistics.")
+parser$add_argument("--eqtl", required=TRUE, help="cis-QTL statistics.")
 parser$add_argument("--shortList", required=TRUE, help="Extracts candidate SNPs/eGenes to test for colocalization from first cis eqtl-tensorQTL run.")
 parser$add_argument("--chromosome", required=TRUE, help="Current chromosome.")
 parser$add_argument("--N_gwas", required=TRUE, help="Samples in GWAS.")
@@ -32,10 +32,8 @@ N_eqtl <- as.numeric(args$N_eqtl)
 output_pre <- args$prefix
 
 # setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/");gwas_input="output/gwas/processed_jurgens24_gwas_HF_chr7.rds"
-# eqtl_inpt="output/tensorqtl_nominal/topchef_chr7_MaxPC70.cis_qtl_pairs.chr7.parquet";shortlist="output/tensorqtl/topchef_chr7_MaxPC70.cis_qtl.txt.gz"
-# N_gwas=1665481;N_eqtl=516;chromosome="chr7"; output_pre="Jurgens2024"
-# sig_genes=unlist(fread(shortlist) %>% select(phenotype_id))
-
+# eqtl_inpt="output/splicing/sqtls_nominal/topchefSplice_chr7_MaxPC2.cis_qtl_pairs.chr7.parquet";shortlist="output/splicing/sqtls/topchefSplice_chr7_MaxPC2.cis_qtl.txt.gz"
+# N_gwas=1665481;N_eqtl=516;chromosome="chr7"; output_pre="Jurgens2024"; sig_genes=unlist(fread(shortlist) %>% select(phenotype_id))
 ### Datasets & Setup ###
 
 # By chromosome coloc
@@ -46,15 +44,15 @@ coloc_chrom <- function(chr) {
   print(paste("Running:", chromi, sep=" "))
   
   # Read in parquet files
-  qtl <- data.table(arrow::read_parquet(eqtl_inpt)) %>% 
-    mutate(chrom = chromi,
-           snp = as.numeric(str_remove_all(tstrsplit(variant_id, ":")[[2]], "\\[b37\\]")),
-           type = "quant",
-           maf = case_when(af > 0.5 ~ 1-af,
-                           TRUE ~ af),
-           n = round(ma_count/(2*maf)))
+  qtl <- data.table(arrow::read_parquet(eqtl_inpt))
+  qtl[, chrom := chromi]
+  #qtl[, gene_simp := tstrsplit(tstrsplit(phenotype_id, ":", fixed = TRUE)[[5]], ".", fixed = TRUE)[[1]]]
+  qtl[, snp := as.numeric(str_remove_all(tstrsplit(variant_id, ":", fixed = TRUE)[[2]], "\\[b37\\]"))]
+  qtl[, type := "quant"]
+  qtl[, maf := fifelse(af > 0.5, 1 - af, af)]
+  qtl[, n := round(ma_count / (2 * maf))]
   
-  # Read in Levin et al 2022 GWAS
+  # Read in GWAS
   gwas <- data.table(readRDS(gwas_input))
   
   # Progress
@@ -62,7 +60,7 @@ coloc_chrom <- function(chr) {
   
     # Window size coloc function between Shah and eQTL datasets
     colocWindow <- function(dt1, N1=N_eqtl, focalGene, dt2, N2=N_gwas) {
-      # dt1=qtl; dt2=gwas; focalGene="ENSG00000128591"; N1=516; N2=1665481
+      # dt1=qtl; dt2=gwas; focalGene="chr7:35145090:35150088:clu_47622_-:ENSG00000189212.12"; N1=516; N2=1665481
       
       # Restrict to all eQTL SNPs 
       dt1 <- dt1[phenotype_id %in% focalGene][!duplicated(variant_id)]

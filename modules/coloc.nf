@@ -98,11 +98,51 @@ process runColoc {
             --chromosome ${chromosome} \\
             --N_gwas ${N_gwas} \\
             --N_eqtl ${N_eqtl} \\
-            --prefix ${gwas_pre}
+            --prefix ${gwas_pre} 
 
         # Finish
         """
 }
+
+// Run Coloc
+process runColocSQTL {
+
+    // Publish the output to the specified directory
+    shell = '/usr/bin/env bash'
+    publishDir "${params.out}/coloc_sqtl", mode: 'copy'
+    errorStrategy = 'ignore'
+
+    input:
+        tuple path(eqtl),
+        val(chromosome),
+        val(best_k),
+        val(gwas_pre),
+        val(N_gwas),
+        val(N_eqtl)
+
+    output:
+        path("*")
+        val("${params.out}/coloc_sqtl"), emit: outDir
+
+    script:
+        """
+        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        # Get input files
+        processed_GWAS=${params.out}/gwas/*${gwas_pre}*${chromosome}.rds
+        firstRun=${params.out}/splicing/sqtls/*${chromosome}_MaxPC2.cis_qtl.txt.gz
+
+        # Run coloc analysis script
+        Rscript ${params.scripts_dir}/run_cisNominaleQTL_coloc.R \\
+            --gwas \${processed_GWAS} \\
+            --eqtl ${eqtl} \\
+            --shortList \${firstRun} \\
+            --chromosome ${chromosome} \\
+            --N_gwas ${N_gwas} \\
+            --N_eqtl ${N_eqtl} \\
+            --prefix ${gwas_pre}
+        """
+}
+
 
 // Run python coloc
 process coloc {
@@ -167,5 +207,31 @@ process analysisColoc {
         # Run analysis script
         Rscript ${params.scripts_dir}/analysis_coloc.R \\
             --wd ${coloc_results}
+        """
+}
+
+// Process for analyzing eqtl output
+process analysisColocSQTL {
+
+    // Publish the output to the specified directory
+    shell = '/usr/bin/env bash'
+    publishDir "${params.out}/coloc_sqtl", mode: 'copy'
+
+    input:
+        path(coloc_results)
+
+    output:
+        path("*_candidates_regions.txt"), emit: candidate_genes
+        path("*pdf")
+        path("*_candidates_full.txt")
+
+    script:
+        """
+        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+
+        # Run analysis script
+        Rscript ${params.scripts_dir}/analysis_coloc.R \\
+            --wd ${coloc_results} \\
+            --sqtl
         """
 }

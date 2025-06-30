@@ -11,29 +11,50 @@ library(argparse)
 # Argument parser
 parser <- ArgumentParser()
 parser$add_argument("--wd", required=TRUE, help="The coloc output files directory.")
+parser$add_argument("--sqtl", required=FALSE, help="Process sQTL datasets.", action="store_true")
 args <- parser$parse_args()
 
 ### Datasets & Setup ###
 
-#wd="/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/output/coloc/"
+#wd="/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/output/coloc_sqtl"
 
 # Coloc files
 coloc <- list.files(path = args$wd, pattern = ".txt", full.names = T)
 # coloc <- list.files(path = wd, pattern = ".txt", full.names = T)
 coloc <- coloc[!coloc%like%"chrX"]
-coloc <- coloc[coloc%like%"_gwas_HF_"]
+coloc <- coloc[coloc%like%"chr"]
 
 # Read in streamlined GTF
 gtf <- data.table(read_rds("/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.streamlined.RDS"))
 
 # Coloc run 
-dt1 <- rbindlist(lapply(coloc, function(t) {fread(t, header = T)}), fill = T) %>% 
-  left_join(gtf %>% 
-              dplyr::select(-c(file, V7, V9)), 
-            by=c("gene"="gene_edit","chrom")) %>% 
-  mutate(dir=case_when(beta_qtl > 0 & beta_gwas > 0 ~ "+",
-                       beta_qtl < 0 & beta_gwas < 0 ~ "-",
-                       TRUE ~ "Flip"))
+
+if(args$sqtl==TRUE) {
+  
+  dt1 <- rbindlist(lapply(coloc, function(t) {fread(t, header = T)}), fill = T) %>% 
+    mutate(gene_raw = tstrsplit(tstrsplit(gene, ":", fixed = TRUE)[[5]], ".", fixed = TRUE)[[1]]) %>% 
+    left_join(gtf %>% 
+                dplyr::select(-c(file, V7, V9)), 
+              by=c("gene_raw"="gene_edit","chrom")) %>% 
+    mutate(dir=case_when(beta_qtl > 0 & beta_gwas > 0 ~ "+",
+                         beta_qtl < 0 & beta_gwas < 0 ~ "-",
+                         TRUE ~ "Flip"))
+  
+  pre="sqtl"
+  
+} else {
+  
+  dt1 <- rbindlist(lapply(coloc, function(t) {fread(t, header = T)}), fill = T) %>% 
+    left_join(gtf %>% 
+                dplyr::select(-c(file, V7, V9)), 
+              by=c("gene"="gene_edit","chrom")) %>% 
+    mutate(dir=case_when(beta_qtl > 0 & beta_gwas > 0 ~ "+",
+                         beta_qtl < 0 & beta_gwas < 0 ~ "-",
+                         TRUE ~ "Flip"))
+  
+  pre="eqtl"
+
+}
 
 # Candidate colocalized genes !
 candy <- dt1
@@ -76,12 +97,12 @@ plot1 <- {
                  linetype = "dashed", color = "gray50", linewidth = 1) +
     geom_point(aes(shape = dir, fill= abs(beta_qtl)), size=4) +
     coord_flip() +
-    scale_fill_viridis_c(name = "eQTL Effect Size") + 
-    scale_shape_manual(name = "GWAS/eQTL Direction", 
+    scale_fill_viridis_c(name = "QTL Effect Size") + 
+    scale_shape_manual(name = "GWAS/QTL Direction", 
                        values = c("+" = 24, "-" = 25, "Flip" = 21)) +
     themei +
     labs(x = "Colocalized Gene",
-         size="eQTL Effect",
+         size="QTL Effect",
          y = "GWAS Dataset") +
     theme(legend.position = "right", 
           axis.text.x = element_text(face = "bold.italic", size = 14, angle = 45, hjust = 1),
@@ -92,12 +113,12 @@ plot1 <- {
 }
 
 # Save output image
-ggsave(plot = plot1, filename = "coloc_genes.pdf", dpi = 300, width = 12, height = 14)
+ggsave(plot = plot1, filename = paste0(pre, "_coloc_genes.pdf"), dpi = 300, width = 12, height = 14)
 
 # Output results
-write_delim(candy, file = "coloc_eqtl_candidates_full.txt", delim = "\t")
+write_delim(candy, file = paste0("coloc_", pre, "_candidates_full.txt"), delim = "\t")
 
 # List to followup on with LD
 candyi <- data.table(candy %>% select(chrom, minPos, maxPos, common_gene) %>% distinct())
 
-write_delim(candyi, file = "coloc_eqtl_candidates_regions.txt", delim = "\t", col_names = F)
+write_delim(candyi, file = paste0("coloc_", pre, "_candidates_regions.txt"), delim = "\t", col_names = F)
