@@ -6,7 +6,7 @@ output*/
 output_test_new/
 output/
 work/
-future*
+future/
 *pdf
 *png
 *svg
@@ -19,6 +19,7 @@ report.html
 scripts/.ipynb_checkpoints
 .vscode*
 report.html
+dev/
 
 # large Files
 *.sif

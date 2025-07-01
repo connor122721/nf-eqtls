@@ -1,6 +1,6 @@
 # Connor S. Murray
 # Bulk RNA-seq deconvolution for heart tissue
-# Started: 3.11.2025
+# Started: 3.11.2025; edited 7/1/2025
 
 # Libraries
 library(MuSiC)
@@ -114,6 +114,7 @@ prop_long <- data.table(pivot_longer(prop_df,
                                      values_to = "proportion") %>% 
                 right_join(meta %>%
                     filter(diagnosis_simple %in% c("IDCM", "ICM", "Non-Failing")) %>% 
+                    mutate(diagnosis_simple = case_when(diagnosis_simple=="IDCM"~"DCM", TRUE~diagnosis_simple)) %>% 
                     select(sample=SAMPLE_ID_TOR, diagnosis_simple, Gender, Age_at_collection)))
 
 # Combine verbose cell type names into simpler categories
@@ -147,7 +148,7 @@ desired_order <- c("Cardiomyocyte", "Endothelial cell",
 prop_long$cell_type <- factor(prop_long$cell_type, levels = desired_order)
 
 p1 <- {
-  prop_long[!Gender == ""] %>% 
+  na.omit(prop_long[!Gender == ""]) %>% 
     ggplot(aes(x = proportion*100, 
                y = reorder(sample, Age_at_collection),
                fill = cell_type)) +
@@ -171,7 +172,7 @@ p2 <- {
                y = proportion*100, 
                fill = diagnosis_simple)) +
     geom_violin() +
-    geom_boxplot(fill="white", outlier.shape = NA) +
+    geom_boxplot(fill="white", outlier.shape = NA, alpha=0.7) +
     scale_fill_manual(values = c("steelblue4", "blue2", "lightblue1")) +
     facet_wrap(~cell_type, 
                scales = "free_y", 
@@ -191,7 +192,64 @@ p2 <- {
 library(patchwork)
 p3 <- (p1+p2)
 
-ggsave("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/output/deconvolution_new.pdf", 
+ggsave("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/output/deconvolution_new1.pdf", 
        p3, width = 16, height = 16)
 
 saveRDS(prop_long, file = "/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/output/deconvolution.rds")
+
+# Statistics
+
+# Arcsine-square-root transform for proportions
+prop_long <- prop_long %>%
+  mutate(prop_asin = asin(sqrt(proportion)))
+
+na.omit(prop_long) %>% 
+  ggplot(., 
+         aes(x = asin(sqrt(proportion)))) +
+  geom_histogram() +
+  facet_wrap(~cell_type, scales = "free")
+
+# ANOVA
+library(car)
+a1 <- lm(prop_asin ~ diagnosis_simple + Gender + Age_at_collection,
+           data = filter(prop_long, cell_type=="Cardiomyocyte"))
+Anova(a1, type="III")
+emmeans::emmeans(a1, ~ diagnosis_simple) %>% pairs()
+
+# normality check
+qqPlot(a1, main="QQ Plot of Residuals")
+
+# Levene’s test for equal variances by diagnosis
+leveneTest(prop_asin ~ diagnosis_simple, 
+           data=filter(prop_long, cell_type=="Cardiomyocyte"))
+
+# Testing different models
+m0 <- lm(prop_asin ~ diagnosis_simple + Gender + Age_at_collection, 
+         data=filter(prop_long, cell_type=="Cardiomyocyte"))
+
+m1 <- lm(prop_asin ~ diagnosis_simple * Gender + Age_at_collection, 
+         data=filter(prop_long, cell_type=="Cardiomyocyte"))
+
+m2 <- lm(prop_asin ~ diagnosis_simple * Gender * Age_at_collection, 
+         data=filter(prop_long, cell_type=="Cardiomyocyte"))
+
+anova(m0, m1, m2) 
+AIC(m0, m1, m2)
+
+# Different cell types
+b1 <- lm(prop_asin ~ diagnosis_simple + Gender + Age_at_collection,
+         data = filter(prop_long, cell_type=="Endothelial cell"))
+Anova(b1, type="III")
+
+c1 <- lm(prop_asin ~ diagnosis_simple + Gender + Age_at_collection,
+         data = filter(prop_long, cell_type=="Fibroblast"))
+Anova(c1, type="III")
+
+d1 <- lm(prop_asin ~ diagnosis_simple + Gender + Age_at_collection,
+         data = filter(prop_long, cell_type=="Myeloid"))
+Anova(d1, type="III")
+
+e1 <- lm(prop_asin ~ diagnosis_simple + Gender + Age_at_collection,
+         data = filter(prop_long, cell_type=="Neural cell"))
+Anova(e1, type="III")
+emmeans::emmeans(e1, ~ diagnosis_simple) %>% pairs()

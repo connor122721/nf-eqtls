@@ -9,9 +9,9 @@ process runRegtools {
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/splicing/junc", mode: 'copy'
     errorStrategy = 'ignore'
-    time = '3h'
-    memory = '2 GB'
-    threads = 1
+    time = '2h'
+    memory = '5 GB'
+    cpus = 1
 
     input:
         tuple val(rnaid),
@@ -41,7 +41,7 @@ process runLeafcutterClusterGTEx {
     errorStrategy = 'ignore'
     time = '5h'
     memory = '50 GB'
-    threads = 4
+    cpus = 4
 
     input:
         path(juncFiles)
@@ -76,13 +76,14 @@ process reformatLeaf {
     publishDir "${params.out}/splicing/cluster", mode: 'copy'
     errorStrategy = 'ignore'
     memory = '15 GB'
-    threads = 1
+    cpus = 1
 
     input:
         path("*")
 
     output:
-        path("*splicepc*")
+        tuple path("*splicepc*"),
+              val("${params.out}/splicing/cluster"), emit: reformat_out
 
     script:
         """
@@ -99,14 +100,15 @@ process TensorQTLSubmission {
 
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/splicing/sqtls", mode: 'copy'
-    threads = 8
+    cpus = 8
     memory = '30 GB'
 
     input:
         tuple val(chromosome), 
               val(covariate), 
               val(pc), 
-              val(plink_prefix)    
+              val(plink_prefix),
+              val(reformat_dir)   
 
     output:
         tuple path("*qtl.txt.gz"),
@@ -134,7 +136,7 @@ process TensorQTLNominal {
 
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/splicing/sqtls_nominal", mode: 'copy'
-    threads = 8
+    cpus = 8
     memory = '30 GB'
 
     input:
@@ -298,9 +300,6 @@ workflow {
         .from( (1..22).collect { it.toString() } + ['X'] )
         .map { idx -> "chr${idx}" }
 
-    // Cross‑product
-    //sample_chrom = samples.combine(chroms)
-
     // Write out bam list
     sample_bam = samples.map { rnaID, dnaID ->
         bamPath = "/standard/vol185/TOPMed/TOPCHef/bams/${dnaID}.Aligned.sortedByCoord.out.md.bam"
@@ -325,12 +324,13 @@ workflow {
     // STEPs II: sQTL Mapping 
 
     // Number of Splicing PCs to test
-    pcs = Channel.from(1..10)
+    pcs = Channel.from(1..100)
 
     // Combine all chromosome / PC 
     chrom_covs = chroms
         .combine(pcs)
-        .map { [it[0], "topchef_cov_splicepc1_${it[1]}_06.23.25.txt", it[1], "${it[0]}_1.17.25.TOPchef"] }
+        .combine(reformatLeaf.out.reformat_out.collect())
+        .map { [it[0], "topchef_cov_splicepc1_${it[1]}_06.23.25.txt", it[1], "${it[0]}_1.17.25.TOPchef", it[2]] }
 
     // Submit TensorQTL - saturation QTL jobs
     TensorQTLSubmission(chrom_covs)
@@ -351,45 +351,44 @@ workflow {
         .set { best_k }
 
     // Submit TensorQTL nominal jobs - for best model
-    chrom_covs
-        .filter { it[2] == 2 }  // Filter for PC equal to best k
-        .set { tensorqtl_input_nom_ch }
+    //chrom_covs
+    //    .filter { it[2] == 2 }  // Filter for PC equal to best k
+    //    .set { tensorqtl_input_nom_ch }
 
     // Run tensorQTL - cis-nominal p-value
-    TensorQTLNominal(tensorqtl_input_nom_ch)
+    //TensorQTLNominal(tensorqtl_input_nom_ch)
 
     // Step III: Colocalization 
     
     // Run coloc analyses
-    N_levin = Channel.of(1665481, 516).toList()
-    N_shah = Channel.of(977323, 516).toList()
-    N_jurgens = Channel.of(955733, 516).toList()
-    pre_lev = Channel.of("levin22")
-    pre_shah = Channel.of("shah20")
-    pre_jurgens = Channel.of("jurgens24")
+    //N_levin = Channel.of(1665481, 516).toList()
+    //N_shah = Channel.of(977323, 516).toList()
+    //N_jurgens = Channel.of(955733, 516).toList()
+    //pre_lev = Channel.of("levin22")
+    //pre_shah = Channel.of("shah20")
+    //pre_jurgens = Channel.of("jurgens24")
 
     // Run a
-    colocLevin = runColoc_levin(TensorQTLNominal.out
-                   .combine(best_k)
-                   .combine(pre_lev)
-                   .combine(N_levin))
+    //colocLevin = runColoc_levin(TensorQTLNominal.out
+    //               .combine(best_k)
+    //              .combine(pre_lev)
+    //               .combine(N_levin))
 
     // Run b
-    colocShah = runColoc_shah(TensorQTLNominal.out
-                  .combine(best_k)
-                  .combine(pre_shah)
-                  .combine(N_shah))
+    //colocShah = runColoc_shah(TensorQTLNominal.out
+    //              .combine(best_k)
+    //              .combine(pre_shah)
+    //             .combine(N_shah))
 
     // Run c
-    colocJurgens = runColoc_jurgens(TensorQTLNominal.out
-                  .combine(best_k)
-                  .combine(pre_jurgens)
-                  .combine(N_jurgens))
+    //colocJurgens = runColoc_jurgens(TensorQTLNominal.out
+    //              .combine(best_k)
+    //              .combine(pre_jurgens)
+    //              .combine(N_jurgens))
 
     // Get candidate eGenes that are colocalized and prep for LD analysis
-    wd1 = colocLevin.outDir.unique().collect()
-    wd2 = colocShah.outDir.unique().collect()
-    wd3 = colocJurgens.outDir.unique().collect() 
-    ColocGenes = analysisColocSQTL(wd1.join(wd2).join(wd3).unique())
-
+    //wd1 = colocLevin.outDir.unique().collect()
+    //wd2 = colocShah.outDir.unique().collect()
+    //wd3 = colocJurgens.outDir.unique().collect() 
+    //ColocGenes = analysisColocSQTL(wd1.join(wd2).join(wd3).unique())
 }
