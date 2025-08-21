@@ -31,15 +31,15 @@ N_gwas <- as.numeric(args$N_gwas)
 N_eqtl <- as.numeric(args$N_eqtl)
 output_pre <- args$prefix
 
-# setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/");gwas_input="output/gwas/processed_jurgens24_gwas_HF_chr7.rds"
-# eqtl_inpt="output/splicing/sqtls_nominal/topchefSplice_chr7_MaxPC2.cis_qtl_pairs.chr7.parquet";shortlist="output/splicing/sqtls/topchefSplice_chr7_MaxPC2.cis_qtl.txt.gz"
-# N_gwas=1665481;N_eqtl=516;chromosome="chr7"; output_pre="Jurgens2024"; sig_genes=unlist(fread(shortlist) %>% select(phenotype_id))
+# setwd("/scratch/csm6hg/nextflow_dna/");gwas_input="output/gwas/processed_jurgens24_gwas_HF_chr10.rds"
+# eqtl_inpt="output/splicing/sqtls_nominal/topchefSplice_chr10_MaxPC10.cis_qtl_pairs.chr10.parquet";shortlist="output/splicing/sqtls/topchefSplice_chr10_MaxPC10.cis_qtl.txt.gz"
+# N_gwas=1665481;N_eqtl=516;chromosome="chr10"; output_pre="Jurgens2024"; sig_genes=unlist(fread(shortlist) %>% dplyr::select(phenotype_id))
 ### Datasets & Setup ###
 
 # By chromosome coloc
 coloc_chrom <- function(chr) {
   
-  # Start on chromosome: chr="chr7"
+  # Start on chromosome: chr="chr10"
   chromi=chr
   print(paste("Running:", chromi, sep=" "))
   
@@ -61,6 +61,7 @@ coloc_chrom <- function(chr) {
     # Window size coloc function between Shah and eQTL datasets
     colocWindow <- function(dt1, N1=N_eqtl, focalGene, dt2, N2=N_gwas) {
       # dt1=qtl; dt2=gwas; focalGene="chr7:35145090:35150088:clu_47622_-:ENSG00000189212.12"; N1=516; N2=1665481
+      # dt1=qtl; dt2=gwas; focalGene="chr10:73640035:73641411:clu_11756_-:ENSG00000166317.12"; N1=516; N2=1665481
       
       # Restrict to all eQTL SNPs 
       dt1 <- dt1[phenotype_id %in% focalGene][!duplicated(variant_id)]
@@ -74,7 +75,7 @@ coloc_chrom <- function(chr) {
       # Combine
       dtsub <- dt1 %>% 
         left_join(dt2 %>% 
-              select(variant_id=snpID_hg38,
+              dplyr::select(variant_id=snpID_hg38,
                      beta_gwas=beta, 
                      varbeta_gwas=standard_error,
                      pvalue_gwas=p_value,

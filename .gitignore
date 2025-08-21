@@ -1,26 +1,22 @@
 .ipynb_checkpoints/
 .nextflow/
 .nextflow.log*
+*.ipynb
+scripts/.ipynb_checkpoints
+.vscode*
+
 output_test/
 output*/
-output_test_new/
-output/
+dev*/
 work/
 future/
+
+# Files
 *pdf
 *png
 *svg
-*.ipynb
-test*
-test/*
 list.eqtls*
 *html
 report.html
-scripts/.ipynb_checkpoints
-.vscode*
-report.html
-dev/
-
-# large Files
 *.sif
 singularity*

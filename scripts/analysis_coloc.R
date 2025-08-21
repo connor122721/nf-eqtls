@@ -16,7 +16,7 @@ args <- parser$parse_args()
 
 ### Datasets & Setup ###
 
-#wd="/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/output/coloc_sqtl"
+#wd="/scratch/csm6hg/nextflow_dna/output/coloc_sqtl"; sqtl="TRUE"
 
 # Coloc files
 coloc <- list.files(path = args$wd, pattern = ".txt", full.names = T)

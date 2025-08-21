@@ -166,6 +166,42 @@ process TensorQTLNominal {
         """
 }
 
+// trans-sQTL submission process
+process TensorTransQTL {
+
+    shell = '/usr/bin/env bash'
+    publishDir "${params.out}/trans_sqtl", mode: 'copy'
+    threads = 8
+    memory = '30 GB'
+
+    input:
+        tuple val(chromosome), 
+              val(covariate), 
+              val(pc), 
+              path(bed_files),
+              val(plink_prefix)    
+
+    output:
+        path("*parquet") 
+
+    script:
+        """
+        module load miniforge/24.3.0-py3.11
+        source activate qtl
+
+        # Use tensorQTL based on chromosome
+        python3 -m tensorqtl \\
+            ${params.out}/bedfiles/${plink_prefix} \\
+            ${params.out}/eqtl/*.sort.bed \\
+            topchef_${chromosome}_MaxPC${pc} \\
+            --maf_threshold 0.01 \\
+            --covariates ${params.out}/eqtl/${covariate} \\
+            --mode trans \\
+            --return_r2
+            
+        """
+}
+
 // Other scripts for alternative analyses
 // Intron clustering
 process runLeafcutterCluster {
@@ -196,42 +232,6 @@ process runLeafcutterCluster {
             -m 30 \\
             -o ${chrom} \\
             -l 500000
-        """
-}
-
-// Reformatting junction files for QTL mapping
-process OLD_reformatLeaf {
-
-    container 'docker://francois4/leafcutter:latest'
-    shell = '/usr/bin/env bash'
-    publishDir "${params.out}/splicing/sqtl", mode: 'copy'
-    errorStrategy = 'ignore'
-    memory = '10 GB'
-    threads = 1
-
-    input:
-        path(juncFiles)
-
-    output:
-        path("*qqnorm_chr*")
-        path("*counts.gz.PCs")
-        path("*phen_chr*")
-
-    script:
-        """
-        # Create merged junction files
-        zcat chr1_perind.counts.gz | head -n 1 > all_clusters.counts
-        sed -i 's/.chr1//g' all_clusters.counts # Replace Chromosome from sample names
-        for file in chr*_perind.counts.gz; do
-            zcat "\${file}" | tail -n +2 >> all_clusters.counts
-        done
-        gzip all_clusters.counts
-
-        # Run clustering algorithm
-        python3 ${params.scripts_dir}/prepare_phenotype_table_annotated.py \\
-            all_clusters.counts.gz \\
-            --gtf "/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.genes.collapsed_only.gtf" \\
-            -p 100
         """
 }
 
@@ -274,6 +274,7 @@ include { runColocSQTL as runColoc_levin } from '../coloc.nf'
 include { runColocSQTL as runColoc_shah } from '../coloc.nf'
 include { runColocSQTL as runColoc_jurgens } from '../coloc.nf'
 include { analysisColocSQTL } from '../coloc.nf'
+include { TensorQTLSusie } from './splicing_susie.nf'
 
 // Run splicing analyses for each chromosome
 workflow {
@@ -351,44 +352,58 @@ workflow {
         .set { best_k }
 
     // Submit TensorQTL nominal jobs - for best model
-    //chrom_covs
-    //    .filter { it[2] == 2 }  // Filter for PC equal to best k
-    //    .set { tensorqtl_input_nom_ch }
+    chrom_covs
+       .filter { it[2] == 10 }  // Filter for PC equal to best k
+       .set { tensorqtl_input_nom_ch }
 
     // Run tensorQTL - cis-nominal p-value
-    //TensorQTLNominal(tensorqtl_input_nom_ch)
+    TensorQTLNominal(tensorqtl_input_nom_ch)
+
+    // Run tensorQTL - cis-sQTL fine-mapping
+    Channel
+        TensorQTLNominal.out
+        .map { [it[1], it[0]] }
+        .collect()
+        .set { outi_nom }
+    
+    // Join them by chr
+    TensorQTLSusie(tensorqtl_input_nom_ch
+                   .combine(outi_nom))
+
+    // Run trans-sQTL mapping
+
 
     // Step III: Colocalization 
     
     // Run coloc analyses
-    //N_levin = Channel.of(1665481, 516).toList()
-    //N_shah = Channel.of(977323, 516).toList()
-    //N_jurgens = Channel.of(955733, 516).toList()
-    //pre_lev = Channel.of("levin22")
-    //pre_shah = Channel.of("shah20")
-    //pre_jurgens = Channel.of("jurgens24")
+    N_levin = Channel.of(1665481, 516).toList()
+    N_shah = Channel.of(977323, 516).toList()
+    N_jurgens = Channel.of(955733, 516).toList()
+    pre_lev = Channel.of("levin22")
+    pre_shah = Channel.of("shah20")
+    pre_jurgens = Channel.of("jurgens24")
 
     // Run a
-    //colocLevin = runColoc_levin(TensorQTLNominal.out
-    //               .combine(best_k)
-    //              .combine(pre_lev)
-    //               .combine(N_levin))
+    colocLevin = runColoc_levin(TensorQTLNominal.out
+                   .combine(best_k)
+                  .combine(pre_lev)
+                   .combine(N_levin))
 
     // Run b
-    //colocShah = runColoc_shah(TensorQTLNominal.out
-    //              .combine(best_k)
-    //              .combine(pre_shah)
-    //             .combine(N_shah))
+    colocShah = runColoc_shah(TensorQTLNominal.out
+                  .combine(best_k)
+                  .combine(pre_shah)
+                  .combine(N_shah))
 
     // Run c
-    //colocJurgens = runColoc_jurgens(TensorQTLNominal.out
-    //              .combine(best_k)
-    //              .combine(pre_jurgens)
-    //              .combine(N_jurgens))
+    colocJurgens = runColoc_jurgens(TensorQTLNominal.out
+                  .combine(best_k)
+                  .combine(pre_jurgens)
+                  .combine(N_jurgens))
 
     // Get candidate eGenes that are colocalized and prep for LD analysis
-    //wd1 = colocLevin.outDir.unique().collect()
-    //wd2 = colocShah.outDir.unique().collect()
-    //wd3 = colocJurgens.outDir.unique().collect() 
-    //ColocGenes = analysisColocSQTL(wd1.join(wd2).join(wd3).unique())
+    wd1 = colocLevin.outDir.unique().collect()
+    wd2 = colocShah.outDir.unique().collect()
+    wd3 = colocJurgens.outDir.unique().collect() 
+    ColocGenes = analysisColocSQTL(wd1.join(wd2).join(wd3).unique())
 }
