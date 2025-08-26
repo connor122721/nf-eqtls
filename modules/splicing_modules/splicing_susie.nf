@@ -6,7 +6,7 @@ nextflow.enable.dsl=2
 process TensorQTLSusie {
 
     shell = '/usr/bin/env bash'
-    publishDir "${params.out}/cis_sqtl_susie", mode: 'copy'
+    publishDir "${params.out}/splicing/cis_sqtl_susie", mode: 'copy'
     threads = 8
     memory = '30 GB'
 
