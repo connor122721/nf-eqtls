@@ -1,6 +1,6 @@
 # Connor Murray
-# Started 10.21.2024
-# analyzing TOPchef eQTLs 
+# Started 10.21.2024; edit 9.11.2025
+# Analyzing TOPchef saturation of significant e/sQTLs 
 
 # Libraries
 library(tidyverse)
@@ -20,7 +20,7 @@ parser$add_argument("--gtf", required=TRUE, help="Streamlined GTF object.")
 parser$add_argument("--sqtl", action='store_true', required=FALSE, help="Make script usable with sQTL object.")
 args <- parser$parse_args()
 
-#setwd("/standard/vol185/cphg_Manichaikul/users/csm6hg/nextflow_dna/work/a4/0d0a1fa77f691416c38bbad47371d7")
+#setwd("/scratch/csm6hg/nextflow_dna/work/8f/812b07876947ea176e944b2be2d64a")
 #qtl.files=fread("cis_sqtl.list", header=F)
 #gene.gtf=read_rds("/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.streamlined.RDS")
 #sqtl=TRUE
@@ -57,8 +57,9 @@ gene.gtf <- data.table(readRDS(gtf))
 if (args$sqtl == "TRUE") {
   
   # sQTLs add gene metadata
+  print("sQTL Processing!")
   qtl.dt <- data.table(qtl.dt %>% 
-             mutate(phenotype_id = str_remove_all(tstrsplit(phenotype_id, ":")[[5]], ".")) %>%  
+             mutate(phenotype_id = tstrsplit(tstrsplit(phenotype_id, ":")[[5]], ".", fixed=T)[[1]]) %>%  
              left_join(gene.gtf %>% 
                       select(-c(file, V9)), 
                       by = c("phenotype_id" = "gene_edit", 
@@ -66,7 +67,9 @@ if (args$sqtl == "TRUE") {
   prefix="sqtl"
   
   } else {
+    
   # eQTLs add gene metadata
+  print("eQTL Processing!")
   qtl.dt <- data.table(qtl.dt %>% 
              left_join(gene.gtf %>% 
                       select(-c(file, V9)), 

@@ -61,9 +61,9 @@ process runLeafcutterClusterGTEx {
             ${params.gtf} \\
             "topchef" \\
             ${params.sample_participant_map} \\
-            --num_pcs 10 \\
-            --min_clu_reads 5 \\
-            --min_clu_ratio 0.000001 \\
+            --num_pcs 100 \\
+            --min_clu_reads 10 \\
+            --min_clu_ratio 0.001 \\
             --leafcutter_dir ${params.scripts_dir}
         """
 }
@@ -193,7 +193,7 @@ process TensorTransQTL {
             ${params.out}/bedfiles/${plink_prefix} \\
             ${params.out}/splicing/cluster/*leafcutter.bed.gz \\
             topchefSplice_${chromosome}_MaxPC${pc} \\
-            --maf_threshold 0.01 \\
+            --maf_threshold 0.05 \\
             --covariates ${params.out}/splicing/cluster/${covariate} \\
             --mode trans \\
             --return_r2

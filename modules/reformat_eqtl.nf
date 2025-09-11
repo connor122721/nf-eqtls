@@ -2,8 +2,6 @@
 
 nextflow.enable.dsl=2
 
-//  Process for reformatting eqtl
-
 // Process for reformatting eqtl
 process reformat_eqtl {
 

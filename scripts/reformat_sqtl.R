@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # Connor Murray
-# Started 10.21.2024; edited 6.10.2025
+# Started 10.21.2024; edited 6.10.2025; 9.11.2025
 # Reformat Splicing Data for TensorQTL
 
 # Libraries
@@ -37,12 +37,14 @@ meta.pca <- data.table(t(meta[!SAMPLE_ID_TOR=="TOR238072"] %>%
                                                    diagnosis_simple=="ICM" ~ 1,
                                                    TRUE ~ 2)) %>%  
                          select(sample=SAMPLE_ID_TOR, SAMPLE_ID_NWD, 
-                                Gender, Age_at_collection, diagnosis_simple, Affected_NF)))
+                                Gender, Age_at_collection, diagnosis_simple, 
+                                Affected_NF, CM_status)))
 colnames(meta.pca) <- as.character(meta.pca[1,])
 
 # Add ID column to match
 meta.pca$ID = c("sample", "SAMPLE_ID_NWD", "Gender", 
-                        "Age_at_collection", "diagnosis_simple", "Affected_NF")
+                        "Age_at_collection", "diagnosis_simple", 
+                "Affected_NF", "CM_status")
 
 # Include DNA-pca data
 dna <- data.table(fread(args$pca_snp))
