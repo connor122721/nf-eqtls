@@ -5,6 +5,7 @@ nextflow.enable.dsl=2
 // TensorQTL submission process
 process TensorQTLSubmission {
 
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/tensorqtl", mode: 'copy'
     threads = 8
@@ -24,8 +25,8 @@ process TensorQTLSubmission {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate qtl
+        #module load miniforge/24.3.0-py3.11
+        #source activate qtl
 
         # Use tensorQTL based on chromosome
         python3 -m tensorqtl \\
@@ -42,6 +43,7 @@ process TensorQTLSubmission {
 // These are very large output files so we will only use a subset
 process TensorQTLNominal {
 
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/tensorqtl_nominal", mode: 'copy'
     threads = 8
@@ -61,8 +63,8 @@ process TensorQTLNominal {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate qtl
+        # module load miniforge/24.3.0-py3.11
+        # source activate qtl
 
         # Use tensorQTL based on chromosome
         python3 -m tensorqtl \\

@@ -5,7 +5,7 @@ nextflow.enable.dsl=2
 // Process for reformatting eqtl
 process reformat_eqtl {
 
-    // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/eqtl", mode: 'copy'
 
@@ -28,7 +28,7 @@ process reformat_eqtl {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        #module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         Rscript ${params.scripts_dir}/reformat_eqtl.R \\
             --metadata ${metadata} \\

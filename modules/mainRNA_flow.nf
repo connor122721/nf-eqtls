@@ -8,7 +8,8 @@ nextflow.enable.dsl=2
 
 // Process for QC normalizing and PCA
 process normalize_and_pca {
-    
+
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/rna", mode: 'copy'
 
@@ -27,8 +28,8 @@ process normalize_and_pca {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate base
+        #module load miniforge/24.3.0-py3.11
+        #source activate base
 
         # Run script        
         python ${params.scripts_dir}/medratio_norm_pca.py \\
@@ -48,6 +49,7 @@ process normalize_and_pca {
 // Tmm normalization and PCA
 process tmm_pipeline {
     
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/rna", mode: 'copy'
 
@@ -67,8 +69,8 @@ process tmm_pipeline {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate base
+        #module load miniforge/24.3.0-py3.11
+        #source activate base
         
         # Run script
         python ${params.scripts_dir}/tmm_norm_pca_sex.py \\

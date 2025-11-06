@@ -10,6 +10,7 @@ nextflow.enable.dsl=2
 process VCF_to_GDS {
 
     // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}", mode: 'copy', pattern: "*.gds"
     memory = '50 GB' // This is a memory intensive job!
@@ -25,7 +26,7 @@ process VCF_to_GDS {
     // Define a unique output name based on input file
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        #module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Run the R script
         Rscript ${params.scripts_dir}/vcf2gds.R \\
@@ -38,7 +39,7 @@ process VCF_to_GDS {
 // Process to perform PCA on SNP data
 process SNP_PCA {
 
-    // Publish the outputs to the specified PCA output directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/pca", mode: 'copy'
 
@@ -57,7 +58,7 @@ process SNP_PCA {
     // Define the script
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        # module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         Rscript ${params.scripts_dir}/topchef_dna_pca.R \\
             --input_gds ${input_gds} \\

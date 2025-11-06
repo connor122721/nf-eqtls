@@ -4,7 +4,8 @@ nextflow.enable.dsl=2
 
 // Create bed files for each chromosome
 process CreateBedFiles {
-
+    
+    container 'library://connmurr243/wgs/wgs_common:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/bedfiles", mode: 'copy'
     //debug true
@@ -20,8 +21,8 @@ process CreateBedFiles {
 
     script:
         """
-        module load bcftools
-        module load plink/2.00a20230303
+        #module load bcftools
+        #module load plink/2.00a20230303
 
         # Convert to bed file using plink
         plink2 \\
@@ -45,6 +46,7 @@ process CreateBedFiles {
 // Create bed files for each chromosome
 process FilterBedFiles {
 
+    container 'library://connmurr243/wgs/wgs_common:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/bedfiles", mode: 'copy'
     //debug true
@@ -60,8 +62,8 @@ process FilterBedFiles {
 
     script:
         """
-        module load bcftools
-        module load plink/2.00a20230303
+        #module load bcftools
+        #module load plink/2.00a20230303
 
         # Convert to bed file using plink
         plink2 \\

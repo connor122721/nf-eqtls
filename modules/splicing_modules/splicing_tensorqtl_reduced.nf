@@ -206,110 +206,38 @@ include { runColocSQTL as runColoc_jurgens } from '../coloc.nf'
 include { analysisColocSQTL } from '../coloc.nf'
 include { TensorQTLSusie } from './splicing_susie.nf'
 
-// Run splicing analyses for each chromosome
 workflow {
 
-    // STEP I: Splicing quantfication and set up
-    
-    // Input parameters
-    meta_ch = Channel
-        .fromPath('../metadata/metadata_10_17_2024_CSM.txt')
-        //.fromPath('../metadata/metadata_6_17_2025_CSM_reduced.txt')
-        .splitCsv(strip: true, sep: '\t', header: true)
-        .map { row -> tuple(row.SAMPLE_ID_NWD.trim(), 
-                            row.SAMPLE_ID_TOR.trim())}
-
-    // Sample list
-    samples = Channel
-        .fromPath('output/eqtl/topchef_samples_1_15_25.txt')
-        .splitCsv(strip: true, sep: '\t')
-        .map { it[0].toString() } 
-        .join(meta_ch, by:0)
+    // Define constants
+    best_k = Channel.of("25")  // Or load from file if needed
+    pre_jurgens = Channel.of("jurgens24")
+    N_jurgens = Channel.of(955733, 516).toList()
 
     // Chromosome list
     chroms = Channel
-        .from( (1..22).collect { it.toString() } + ['X'] )
-        .map { idx -> "chr${idx}" }
+        .from((1..22).collect { it.toString() } + ['X'])
+        .map { "chr${it}" }
 
-    // Write out bam list
-    sample_bam = samples.map { rnaID, dnaID ->
-        bamPath = "/standard/vol185/TOPMed/TOPCHef/bams/${dnaID}.Aligned.sortedByCoord.out.md.bam"
-        baiPath = "/standard/vol185/TOPMed/TOPCHef/bams/${dnaID}.Aligned.sortedByCoord.out.md.bam.bai"
-        tuple(rnaID, dnaID, bamPath, baiPath)}
+    // Create channel for nominal TensorQTL results
+    TensorQTLNominal_out = Channel
+        .fromPath("${params.out}/splicing/sqtls_nominal/*MaxPC25*.parquet")
+        .map { path ->
+            // Extract chromosome name from filename (e.g., "chr3" from "..._chr3_...")
+            def fname = path.getName()
+            def chrom = (fname =~ /(chr[0-9XY]+)/)[0][1]
+            tuple(path, chrom)
+        }
 
-    // Run regtools
-    runRegtools(sample_bam)
+    // Check mapping
+    //TensorQTLNominal_out.view()
 
-    // Collect junction files
-    Channel 
-        runRegtools.out
-        .collect()
-        .set { reg_grouped }
+    // Run coloc analysis
+    colocJurgens = runColoc_jurgens(
+        TensorQTLNominal_out
+            .combine(best_k)
+            .combine(pre_jurgens)
+            .combine(N_jurgens))
 
-    // Run Leafcutter clustering
-    runLeafcutterClusterGTEx(reg_grouped)
-
-    // Reformat junction files for QTL mapping
-    reformatLeaf(runLeafcutterClusterGTEx.out)
-
-    // STEPs II: sQTL Mapping 
-
-    // Number of Splicing PCs to test
-    pcs = Channel.from(1..100)
-
-    // Combine all chromosome / PC 
-    chrom_covs = chroms
-        .combine(pcs)
-        .combine(reformatLeaf.out.reformat_out.collect())
-        .map { [it[0], "topchef_cov_splicepc1_${it[1]}_06.23.25.txt", it[1], "${it[0]}_1.17.25.TOPchef", it[2]] }
-
-    // Submit TensorQTL - saturation QTL jobs
-    TensorQTLSubmission(chrom_covs)
-
-    // Extract unique path from TensorQTLSubmission
-    Channel
-        TensorQTLSubmission.out
-        .map { tuple -> tuple[0] }
-        .collect()
-        .set { outi }
-    
-    // Extract Best-K to run nominal p-value
-    analysis_sqtl_saturation(outi)    
-
-     // Extract Best K
-    analysis_sqtl_saturation.out.bestK
-        .splitText()
-        .set { best_k }
-
-    // Submit TensorQTL nominal jobs - for best model
-    chrom_covs
-       .filter { it[2] == 25 }  // Filter for PC equal to best k
-       .set { tensorqtl_input_nom_ch }
-
-    // Run tensorQTL - cis-nominal p-value
-    TensorQTLNominal(tensorqtl_input_nom_ch)
-
-    // Run tensorQTL - cis-sQTL fine-mapping
-    TensorQTLSusie(tensorqtl_input_nom_ch
-                   .combine(TensorQTLNominal.out.collect()))
-
-    // Run trans-sQTL mapping
-    TensorTransQTL(tensorqtl_input_nom_ch
-                   .combine(TensorQTLNominal.out.collect()))
-
-    // Step III: Colocalization 
-    
-    // Run coloc analyses
-    N_jurgens = Channel.of(955733, 516).toList()
-    pre_jurgens = Channel.of("jurgens24")
-
-    // Run A
-    colocJurgens = runColoc_jurgens(TensorQTLNominal.out
-                  .combine(best_k)
-                  .combine(pre_jurgens)
-                  .combine(N_jurgens))
-
-    // Get candidate eGenes that are colocalized and prep for LD analysis
-    wd3 = colocJurgens.outDir.unique().collect() 
+    wd3 = colocJurgens.outDir.unique().collect()
     ColocGenes = analysisColocSQTL(wd3.unique())
 }

@@ -46,6 +46,8 @@ process King {
 
 // Run R script for plotting kinship and identifying related individuals
 process PlotKinship {
+
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/king", mode: 'copy'
 
@@ -58,7 +60,7 @@ process PlotKinship {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        #module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         Rscript ${params.scripts_dir}/plot_king.R \\
             --king_input ${king_files} \\

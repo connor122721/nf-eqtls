@@ -30,26 +30,20 @@ graph TD
 ```
 
 ## Installation
-To run this pipeline, you need to have *Nextflow* and *Apptainer* installed.
-I am currently building/utilizing apptainer containers to have all of the following dependencies installed:
+To run this pipeline, you need to have *nextflow* and *apptainer* installed.
+I am building/utilizing apptainer containers for all processes and tested this pipeline on the following versions:
 ```
-- NextFlow
-- Apptainer
-- bcftools/1.17
-- plink/2.00a20230303
-- King/2.3.2
-- R/4.3.1
-- Python/3.11.4
-- htslib/1.17
+- nextflow/25.04.6
+- apptainer/1.3.4
 ```
 
 ## Usage
-To run the pipeline, use the following command:
+1) To run the first part of this pipeline for eQTL mapping/coloc, use the following command:
 ```sh
 nextflow run main_process.nf -profile slurm -resume -bg 
 ```
 
-After finishing the eQTL files you can run the splicing-QTLs with the following command:
+2) After finishing the eQTL files you can run the splicing-QTLs with the following command:
 ```sh
 nextflow run modules/splicing_modules/splicing_tensorqtl.nf -profile slurm -resume -bg 
 ```

@@ -5,6 +5,7 @@ nextflow.enable.dsl=2
 // trans-eQTL submission process
 process TensorTransQTL {
 
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/trans_qtl", mode: 'copy'
     threads = 8
@@ -22,8 +23,8 @@ process TensorTransQTL {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate qtl
+        # module load miniforge/24.3.0-py3.11
+        # source activate qtl
 
         # Use tensorQTL based on chromosome
         python3 -m tensorqtl \\
@@ -41,6 +42,7 @@ process TensorTransQTL {
 // trans-eQTL susie submission process
 process TensorTransQTLSusie {
 
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/trans_susie", mode: 'copy'
     threads = 8
@@ -58,8 +60,8 @@ process TensorTransQTLSusie {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate qtl
+        # module load miniforge/24.3.0-py3.11
+        # source activate qtl
 
         # Use tensorQTL based on chromosome
         python3 -m tensorqtl \\

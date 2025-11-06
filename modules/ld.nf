@@ -85,7 +85,7 @@ process LD_CandidateGenes {
 // Make locuscompare plots
 process plotLocusCompare {
     
-    // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/coloc_locusPlot", mode: 'copy'
     errorStrategy = 'ignore'
@@ -102,7 +102,7 @@ process plotLocusCompare {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        # module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Run analysis script
         Rscript ${params.scripts_dir}/analysis_eGene_coloc.R \\

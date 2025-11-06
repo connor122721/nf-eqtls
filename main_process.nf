@@ -254,7 +254,6 @@ workflow {
     plink_prefix_ch_tqtl = bed_tqtl.plink_prefix
 
     // Number of RNA PCs to test
-    // pcs = Channel.from(1..100)
     pcs = Channel.from(1..100)
 
     // Combine all chromosome / PC 

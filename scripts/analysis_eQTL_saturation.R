@@ -20,10 +20,8 @@ parser$add_argument("--gtf", required=TRUE, help="Streamlined GTF object.")
 parser$add_argument("--sqtl", action='store_true', required=FALSE, help="Make script usable with sQTL object.")
 args <- parser$parse_args()
 
-#setwd("/scratch/csm6hg/nextflow_dna/work/8f/812b07876947ea176e944b2be2d64a")
-#qtl.files=fread("cis_sqtl.list", header=F)
-#gene.gtf=read_rds("/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.streamlined.RDS")
-#sqtl=TRUE
+#setwd("/scratch/csm6hg/nextflow_dna/work/20/5029b6c2279e682ae5a7f7f68866f2"); qtl.files=fread("cis_sqtl.list", header=F)
+#gene.gtf=read_rds("/standard/vol185/cphg_Manichaikul/users/csm6hg/genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.streamlined.RDS"); sqtl=TRUE
 
 qtl.files <- fread(args$list_of_eqtls, header=F)
 gtf <- args$gtf
@@ -80,6 +78,7 @@ if (args$sqtl == "TRUE") {
 
 # Output
 saveRDS(qtl.dt, file = paste0(prefix, ".rna.saturation.rds"))
+# qtl.dt <- read_rds("sqtl.rna.saturation.rds")
 
 #### Analysis ####
 
@@ -105,7 +104,8 @@ qtl.rate <- data.table(qtl.dt %>%
                  group_by(maxPC) %>% 
                  summarize(n = sum(pval_perm < cutoff)) %>% 
                  arrange(maxPC) %>%  
-                 mutate(roc = (n - lag(n)) / (maxPC - lag(maxPC))) %>%
+                 mutate(roc = (n - lag(n)) / (maxPC - lag(maxPC)),
+                        roc_per = (n/lag(n))-1) %>%
                  mutate(roc2 = (roc - lag(roc)) / (maxPC - lag(maxPC))))
 
 if (args$sqtl == "TRUE") {
@@ -148,7 +148,7 @@ p5 <- {
     geom_line(color="blue", linewidth=0.8) +
     geom_point(data=qtl.rate%>% filter(maxPC %% 5 == 0), size=2) +
     geom_vline(xintercept = best_maxPC, linetype=2, color="red") +
-    labs(x="Max RNA PCs", y="Number of Significant eQTLs") +
+    labs(x="Max RNA PCs", y="Number of Significant QTLs") +
     themei
 }
 
@@ -161,13 +161,14 @@ p6 <- {
     geom_line() +
     geom_vline(xintercept = best_maxPC, linetype=2, color="red") +
     geom_hline(yintercept = 0) +
-    labs(x="Max RNA PCs", y="Change in Significant eQTLs") +
+    labs(x="Max RNA PCs", y="Change in Significant QTLs") +
     themei
 }
 
 # Saturation point
 pp <- (p5 |p6)
 ggsave(plot = pp, paste0(prefix, ".saturation.pdf"), width = 16, height = 8)
+#ggsave(plot = pp, paste0("/standard/vol185/cphg_Manichaikul/users/csm6hg/working_hf/figures/", prefix, ".saturation.pdf"), width = 16, height = 8)
 
 # Output best k
 write.table(

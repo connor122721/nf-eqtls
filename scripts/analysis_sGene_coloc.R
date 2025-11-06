@@ -1,6 +1,6 @@
 # Connor Murray
 # Started 12.10.2024; modifed 1.30.2025
-# analyzing TOPchef eQTLs and make 
+# analyzing TOPchef e/sQTLs and make coloc plots
 # module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1; R
 
 # Libraries
@@ -14,6 +14,11 @@ parser$add_argument("--gwas", required=TRUE, help="Processed GWAS summary statis
 parser$add_argument("--eqtl", required=TRUE, help="Number of max RNA PCs used in eQTL model.")
 parser$add_argument("--chromosome", required=TRUE, help="Current chromosome.")
 parser$add_argument("--gene", required=TRUE, help="Current gene.")
+
+# Create list for LD matrix generation
+# coloc <- fread("/scratch/csm6hg/nextflow_dna/output/coloc_sqtl/coloc_sqtl_candidates_full.txt") %>% 
+#  filter(PP.H4 > 0.8) %>% select(chrom, minPos, maxPos, gene_raw, gene.x)
+# write.table(coloc, file="/standard/vol185/cphg_Manichaikul/users/csm6hg/data/candgenes.spliceldlist_9_16_25.txt", sep = "\t", quote = F, row.names = F)
 
 args <- parser$parse_args()
 

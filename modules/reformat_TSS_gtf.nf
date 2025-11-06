@@ -10,6 +10,7 @@ nextflow.enable.dsl=2
 process reformat_tss_gtf {
 
     // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/genome_files", mode: 'copy'
 
@@ -21,8 +22,8 @@ process reformat_tss_gtf {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate base
+        #module load miniforge/24.3.0-py3.11
+        #source activate base
 
         # Collapse annotations to one per transcript
         python ${params.scripts_dir}/collapse_annotations.py \\

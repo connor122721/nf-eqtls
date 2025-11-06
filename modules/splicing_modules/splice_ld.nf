@@ -124,7 +124,7 @@ workflow {
 
     // LD List
     Channel
-        .fromPath("/standard/vol185/cphg_Manichaikul/users/csm6hg/data/candgenes.spliceldlist.txt")
+        .fromPath("/standard/vol185/cphg_Manichaikul/users/csm6hg/data/candgenes.spliceldlist_9_16_25.txt")
         .splitCsv(skip: 1, strip: true, sep: "\t")
         .map { tuple(vcf, it[0], it[1], it[2], it[3], it[4]) }
         .set { ld_list }    
@@ -137,7 +137,7 @@ workflow {
     
     // Define GWAS and sQTL inputs
     gwas_list = Channel.from(["jurgens24_gwas_HF"])
-    eqtl_input = Channel.from("MaxPC10")
+    eqtl_input = Channel.from("MaxPC25")
     chrom_list = Channel.from(1..22).map { "chr${it}" }
 
     // Combine GWAS, sQTL, chromosome, and gene inputs
