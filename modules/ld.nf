@@ -5,7 +5,7 @@ nextflow.enable.dsl=2
 // Run linkage analyses
 process LD_CandidateGenes {
 
-    container 'library://connmurr243/wgs/wgs_common:latest'
+    container 'library://connmurr243/wgs/wgs_common.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/linkage", mode: 'copy'
     threads = 1
@@ -116,7 +116,7 @@ process plotLocusCompare {
 // Run TensorQTL submission for each chromosome and covariate file
 workflow {
 
-    // X) Get LD matrix for candidate genes
+    // Get LD matrix for candidate genes
     def vcf = file("${params.out}/freeze.10b.pass_only.snps_indels50_mac1.phased.TOPchef.vcf.gz")
 
     // LD List

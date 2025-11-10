@@ -5,7 +5,7 @@ nextflow.enable.dsl=2
 // Create bed files for each chromosome
 process CreateBedFiles {
     
-    container 'library://connmurr243/wgs/wgs_common:latest'
+    container 'library://connmurr243/wgs/wgs_common.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/bedfiles", mode: 'copy'
     //debug true
@@ -46,7 +46,7 @@ process CreateBedFiles {
 // Create bed files for each chromosome
 process FilterBedFiles {
 
-    container 'library://connmurr243/wgs/wgs_common:latest'
+    container 'library://connmurr243/wgs/wgs_common.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/bedfiles", mode: 'copy'
     //debug true

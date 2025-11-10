@@ -3,39 +3,9 @@
 nextflow.enable.dsl=2
 
 // Process for analyzing eqtl output
-process prepGWAS_noBetaCheck {
-
-    // Publish the output to the specified directory
-    shell = '/usr/bin/env bash'
-    publishDir "${params.out}/gwas", mode: 'copy'
-    memory = '50 GB' // This is a memory intensive job!
-    threads = 4
-
-    input:
-        path(gwas)
-        val(prefix)
-        val(liftover)
-
-    output:
-        path("processed*")
-        val(prefix), emit: prefix
-
-    script:
-        """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
-
-        # Run analysis script
-        Rscript ${params.scripts_dir}/prep_GWAS_eQTL_for_coloc.R \\
-            --gwas ${gwas} \\
-            --prefix ${prefix} \\
-            --liftover ${liftover}
-        """
-}
-
-// Process for analyzing eqtl output
 process prepGWAS {
 
-    // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_prepgwas.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/gwas", mode: 'copy'
     memory = '50 GB' // This is a memory intensive job!
@@ -52,7 +22,7 @@ process prepGWAS {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        #module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Run analysis script
         Rscript ${params.scripts_dir}/standardize_GWAS_eQTL_for_coloc_new.R \\
@@ -65,7 +35,7 @@ process prepGWAS {
 // Run Coloc
 process runColoc {
 
-    // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/coloc", mode: 'copy'
     errorStrategy = 'ignore'
@@ -84,7 +54,7 @@ process runColoc {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        #module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Get input files
         processed_GWAS=${params.out}/gwas/*${gwas_pre}*${chromosome}.rds
@@ -98,16 +68,14 @@ process runColoc {
             --chromosome ${chromosome} \\
             --N_gwas ${N_gwas} \\
             --N_eqtl ${N_eqtl} \\
-            --prefix ${gwas_pre} 
-
-        # Finish
+            --prefix ${gwas_pre}
         """
 }
 
 // Run Coloc
 process runColocSQTL {
 
-    // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/coloc_sqtl", mode: 'copy'
     errorStrategy = 'ignore'
@@ -126,7 +94,7 @@ process runColocSQTL {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        #module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
         # Get input files
         processed_GWAS=${params.out}/gwas/*${gwas_pre}*${chromosome}.rds
         firstRun=${params.out}/splicing/sqtls/*${chromosome}_MaxPC2.cis_qtl.txt.gz
@@ -147,7 +115,7 @@ process runColocSQTL {
 // Run python coloc
 process coloc {
 
-    // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/coloc", mode: 'copy'
     errorStrategy = 'ignore'
@@ -166,8 +134,8 @@ process coloc {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate base
+        #module load miniforge/24.3.0-py3.11
+        #source activate base
 
         # Get input files
         processed_GWAS=${params.out}/gwas/*${gwas_pre}*${chromosome}.rds
@@ -188,7 +156,7 @@ process coloc {
 // Process for analyzing eqtl output
 process analysisColoc {
 
-    // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/coloc", mode: 'copy'
 
@@ -202,7 +170,7 @@ process analysisColoc {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        #module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Run analysis script
         Rscript ${params.scripts_dir}/analysis_coloc.R \\
@@ -213,7 +181,7 @@ process analysisColoc {
 // Process for analyzing eqtl output
 process analysisColocSQTL {
 
-    // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/coloc_sqtl", mode: 'copy'
 
@@ -227,7 +195,7 @@ process analysisColocSQTL {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        #module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Run analysis script
         Rscript ${params.scripts_dir}/analysis_coloc.R \\

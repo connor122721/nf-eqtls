@@ -9,7 +9,7 @@ nextflow.enable.dsl=2
 // Run King - kinship analyses
 process King {
 
-    container 'library://connmurr243/wgs/wgs_common:latest'
+    container 'library://connmurr243/wgs/wgs_common.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/king", mode: 'copy'
 

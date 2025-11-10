@@ -98,6 +98,7 @@ process reformatLeaf {
 // 4) TensorQTL submission process - saturation analyses for covariate models
 process TensorQTLSubmission {
 
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/splicing/sqtls", mode: 'copy'
     cpus = 8
@@ -116,8 +117,8 @@ process TensorQTLSubmission {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate qtl
+        #module load miniforge/24.3.0-py3.11
+        #source activate qtl
 
         # Use tensorQTL based on chromosome
         python3 -m tensorqtl \\
@@ -133,6 +134,7 @@ process TensorQTLSubmission {
 // 5) TensorQTL submission process for nominal p-value
 process TensorQTLNominal {
 
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/splicing/sqtls_nominal", mode: 'copy'
     cpus = 12
@@ -151,8 +153,8 @@ process TensorQTLNominal {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate qtl
+        # module load miniforge/24.3.0-py3.11
+        # source activate qtl
 
         # Use tensorQTL based on chromosome
         python3 -m tensorqtl \\
@@ -168,6 +170,7 @@ process TensorQTLNominal {
 // 6) TensorQTL Submission - trans-sQTLs
 process TensorTransQTL {
 
+    container 'library://connmurr243/wgs/topchef_tensorqtl_python.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/splicing/trans_sqtl", mode: 'copy'
     threads = 8
@@ -185,8 +188,8 @@ process TensorTransQTL {
 
     script:
         """
-        module load miniforge/24.3.0-py3.11
-        source activate qtl
+        #module load miniforge/24.3.0-py3.11
+        #source activate qtl
 
         # Use tensorQTL based on chromosome
         python3 -m tensorqtl \\

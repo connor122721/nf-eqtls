@@ -6,6 +6,7 @@ nextflow.enable.dsl=2
 process analysis_eqtl_saturation {
 
     // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/analyses", mode: 'copy'
     errorStrategy = 'ignore'
@@ -20,7 +21,7 @@ process analysis_eqtl_saturation {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        #module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Make file for all eQTLs
         ls *cis_qtl.txt.gz > cis_eqtl.list
@@ -38,7 +39,7 @@ process analysis_eqtl_saturation {
 // Process for analyzing splicing qtl output
 process analysis_sqtl_saturation {
 
-    // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/analyses", mode: 'copy'
     errorStrategy = 'ignore'
@@ -53,7 +54,7 @@ process analysis_sqtl_saturation {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        #module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Make file for all eQTLs
         ls *cis_qtl.txt.gz > cis_sqtl.list

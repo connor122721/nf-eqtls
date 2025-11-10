@@ -19,6 +19,7 @@ process reformat_tss_gtf {
 
     output:
         path "${params.gtf_name}.bed", emit: gtf
+        path "collapsed.gtf"
 
     script:
         """

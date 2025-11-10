@@ -5,6 +5,7 @@ nextflow.enable.dsl=2
 // Run linkage analyses
 process LD_CandidateGenes {
 
+    container 'library://connmurr243/wgs/wgs_common.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/splice_linkage", mode: 'copy'
     threads = 1
@@ -27,8 +28,8 @@ process LD_CandidateGenes {
   
     script:
         """
-        module load bcftools
-        module load plink/1.90b7.2
+        #module load bcftools
+        #module load plink/1.90b7.2
 
         # Samples used
         samples=${params.out}/eqtl/topchef_samples_1_15_25.txt
@@ -88,7 +89,7 @@ process LD_CandidateGenes {
 // Make locuscompare plots
 process plotLocusCompare {
     
-    // Publish the output to the specified directory
+    container 'library://connmurr243/wgs/topchef_tidyverse_r.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/coloc_locusPlot_splice", mode: 'copy'
     errorStrategy = 'ignore'
@@ -105,7 +106,7 @@ process plotLocusCompare {
 
     script:
         """
-        module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
+        # module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1
 
         # Run analysis script
         Rscript ${params.scripts_dir}/analysis_sGene_coloc.R \\

@@ -86,10 +86,13 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
         meta_full = meta_full.drop(index="TOR238072")
 
     # We only need certain columns for DESeq2
+    # meta = meta_full[["Affected_NF"]].copy()
+    # meta = meta.rename(columns={"Affected_NF": "Affected-NF"})
+    # meta.index = meta.index.astype(str)
+    # meta["Affected-NF"] = meta["Affected-NF"].astype("category")
     meta = meta_full[["Affected_NF"]].copy()
-    meta = meta.rename(columns={"Affected_NF": "Affected-NF"})
     meta.index = meta.index.astype(str)
-    meta["Affected-NF"] = meta["Affected-NF"].astype("category")
+    meta["Affected_NF"] = meta["Affected_NF"].astype("category")
 
     # -----------------------------------------------------------
     # (2) Load Mappability and GTF
@@ -153,7 +156,7 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
     dds = DeseqDataSet(
         counts=gene_countsi,
         metadata=meta,
-        design_factors="Affected-NF")
+        design_factors="Affected_NF")
     dds.fit_size_factors()
     norm_counts = pd.DataFrame(dds.layers["normed_counts"])
     norm_counts.index = gene_countsi.index
@@ -171,7 +174,7 @@ def normalize_and_filter(metadata_path, mappability_path, gtf_path,
     norm_t["pass_depth"] = np.where(norm_t["qc_individual_depth"] > 10, "Pass", "Fail")
 
     # Filter among Affected only
-    affected_samples = meta[meta["Affected-NF"] == "Affected"].index
+    affected_samples = meta[meta["Affected_NF"] == "Affected"].index
     affected_counts = norm_t.loc[:, affected_samples].copy()
     affected_counts["qc_individual_depth"] = (
         (affected_counts >= 10).sum(axis=1) / len(affected_samples) * 100)

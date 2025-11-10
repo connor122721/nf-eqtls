@@ -4,7 +4,7 @@
  */
 process ConcatVCF {
 
-    container 'library://connmurr243/wgs/wgs_common:latest'
+    container 'library://connmurr243/wgs/wgs_common.sif:latest'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}", mode: 'copy'
 
