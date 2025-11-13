@@ -5,7 +5,7 @@ nextflow.enable.dsl=2
 // 1) Run regtools
 process runRegtools {
 
-    container 'docker://griffithlab/regtools:release-1.0.0'
+    container 'library://connmurr243/wgs/regtools.sif'
     shell = '/usr/bin/env bash'
     publishDir "${params.out}/splicing/junc", mode: 'copy'
     errorStrategy = 'ignore'

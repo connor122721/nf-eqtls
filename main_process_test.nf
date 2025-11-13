@@ -58,7 +58,7 @@ process ExtractAndIndexVCF {
             --types snps,indels \\
             -i 'TYPE="snp" || (TYPE="indel" && ILEN<50)' \\
             --min-ac 1 \\
-            -r ${chromosome} \\
+            -r ${chromosome}:1000000-30000000 \\
             --threads "${params.threads}" \\
             --samples-file "${params.samp}" \\
             -Oz -o freeze.10b.${chromosome}.pass_only.phased.TOPchef.vcf.gz
@@ -174,7 +174,7 @@ include { TensorTransQTLSusie } from './modules/qtl_mapping/trans_eqtl.nf'
 
 // Modules to run colocolocalization analyses
 include { analysis_eqtl_saturation } from './modules/analysis_eqtl_saturation.nf'
-include { prepGWAS as prepGWAS_jurgens } from './modules/coloc.nf'
+include { prepGWAS as prepGWAS } from './modules/coloc.nf'
 
 include { runColoc as runColoc } from './modules/coloc.nf'
 include { analysisColoc } from './modules/coloc.nf'

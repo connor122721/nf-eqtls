@@ -1,0 +1,38 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%labels
+    Author Connor S. Murray
+    Description "Apptainer image for regtools (Griffith Lab) built from source"
+    Version v0.6.0
+
+%environment
+    export PATH=/opt/regtools/build:$PATH
+
+%post
+    # Avoid interactive prompts
+    export DEBIAN_FRONTEND=noninteractive
+
+    echo ">>> Installing dependencies..."
+    apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        cmake \
+        make \
+        g++ \
+        zlib1g-dev \
+        libcurl4-openssl-dev \
+        libssl-dev \
+        libbz2-dev \
+        liblzma-dev \
+        ca-certificates \
+        && rm -rf /var/lib/apt/lists/*
+
+    echo ">>> Cloning regtools source..."
+    cd /opt
+    git clone https://github.com/griffithlab/regtools.git
+
+    echo ">>> Building regtools..."
+    cd /opt/regtools
+    mkdir build && cd build
+    cmake ..
+    make -j$(nproc)

@@ -226,6 +226,95 @@ zcat /crossmap-nextflow/output/snp_mappability/snp_mappability_36mer_2mismatch.b
 
 ---
 
+---
+
+## Updating/personalizing the `nextflow.config` 
+
+This pipeline requires users to update file paths and cluster settings inside the `nextflow.config` file before running. The configuration file controls:
+
+* SLURM resources (CPUs, memory, partition, account)
+* Directory structure for outputs and scripts
+* Location of RNA-seq counts, metadata, genome files, and optional GWAS inputs
+* Paths to all auxiliary reference files
+
+Use the guide below to update each section.
+
+---
+
+### General SLURM & Resource Settings
+
+Modify these fields to match your HPC cluster:
+
+```groovy
+// General parameters
+threads = 8 // default number of threads per job
+memory = '30 GB'
+partition = 'standard'
+account = 'manichaikul' // SLURM account for job scheduling
+```
+
+---
+
+### Directory Paths
+
+Update all paths to match your system layout:
+
+```groovy
+// Directories
+wd = "/standard/vol185/TOPMed/Freeze_10b/88293/topmed-dcc/exchange/phs001217_TOPMed_WGS_GenSalt/Combined_Study_Data/Genotypes/freeze.10b/phased"
+out = "/scratch/csm6hg/nextflow_dna/output"
+scripts_dir = "/scratch/csm6hg/nextflow_dna/scripts"
+
+// Raw gene count data - RNA matrix
+gene_count_file = "/standard/vol185/TOPMed/TOPCHef/82214/topmed-dcc/exchange/phs002038_TOPMed_TOPCHeF/Omics/RNASeq/release3/TOPMed_Taylor_P4.RNASeQCv2.3.6_gene_reads.gct.gz"
+```
+
+**Edit these fields:**
+* `wd` — directory containing the genomic VCFs
+* `out` — where all workflow output will be stored
+* `scripts_dir` — directory containing the helper Python/R scripts
+* `gene_count_file` — path to the main RNA-seq gene count matrix (GCT or similar)
+
+### Metadata Files
+
+```groovy
+// Metadata - sample and participant information
+samp = "/scratch/csm6hg/metadata/topchef_samples_bcf.txt"
+sample_participant_map = "/scratch/csm6hg/metadata/sample_participant_map"
+metadata = "/scratch/csm6hg/metadata/metadata_10_17_2024_CSM.txt"
+chrom_file = "/scratch/csm6hg/metadata/chromosomes" // List of human chromosomes, no header
+```
+
+**Edit these fields:**
+* `samp` — list of DNA-level sample names found in the VCF
+* `sample_participant_map` — RNA↔DNA ID mapping file
+* `metadata` — main project metadata file
+* `chrom_file` — list of chromosomes used by the pipeline
+
+### Genome Annotation & Mappability Resources
+```groovy
+// Script inputs
+gtf = "/scratch/csm6hg/genome_files/gencode.v34.GRCh38.annotation.gtf"
+gtf_streamlined = "/scratch/csm6hg/genome_files/gencode.v34.GRCh38.ERCC.genes.collapsed.streamlined.RDS"
+mapp_file = "/scratch/csm6hg/data/hg38_gene_mappability.txt.gz"
+snp_mapp_file = "/scratch/csm6hg/crossmap-nextflow/output/snp-mappability/snp_mappability_36mer_2mismatch_mapp1.bed.gz"
+```
+
+**Edit these fields:**
+* `gtf` — reference genome annotation
+* `gtf_streamlined` — collapsed GTF (pipeline-specific)
+* `mapp_file` — gene mappability file
+* `snp_mapp_file` — SNP mappability BED
+
+### Optional: GWAS Inputs for Coloc/Integration
+
+```groovy
+// GWAS inputs - specific to this project and coloc analyses
+gwas_levin = "/scratch/csm6hg/data/HF-multiancestry-maf0.01.tsv.gz"
+gwas_shah = "/scratch/csm6hg/data/ShahS_31919418_HeartFailure.gz"
+gwas_jurgens = "/scratch/csm6hg/data/Jurgens_DCM_GWAS_META_BiobanksOnly.tsv.gz"
+```
+
 ## Pipeline Usage
 
 #### Testing of short-runs to see if all process run fine
