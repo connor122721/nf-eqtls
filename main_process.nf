@@ -321,7 +321,9 @@ workflow {
     // 6) Run coloc analyses
     N_levin = Channel.of(1665481, 516).toList()
     N_shah = Channel.of(977323, 516).toList()
-    N_jurgens = Channel.of(955733, 516).toList()
+
+    // This is a case-control GWAS so make sure to specify rates: 9,365 cases and 946,368 controls
+    N_jurgens = Channel.of(0.00989572767, 516).toList() 
     
     // Run 6a
     colocLevin = runColoc_levin(TensorQTLNominal.out

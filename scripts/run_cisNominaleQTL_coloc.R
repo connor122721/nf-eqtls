@@ -1,6 +1,6 @@
-# Connor Murray
-# Started 12.8.2024; modified 1.30.2025
-# analyzing TOPchef eQTLs and perform colocalization w/HF GWAS
+# By: Connor Murray
+# Started 12.8.2024; modified 1.30.2025; 12.3.2025
+# Analyzing TOPchef e/sQTLs and perform colocalization w/HF GWAS
 # module load gcc/11.4.0 openmpi/4.1.4 R/4.3.1; R
 
 # Libraries
@@ -98,10 +98,10 @@ coloc_chrom <- function(chr) {
                   beta = as.numeric(dt1$slope),
                   varbeta = as.numeric(dt1$slope_se)^2)
       
-      # Make list for colocalization (Shah)
+      # Make list for colocalization (GWAS - Case vs Control setup)
       dt2 <- list(snp = dt2$snpID_hg38,
                   position = dt2$pos_hg38,
-                  type = "quant",
+                  type = "cc",
                   N = N2,
                   MAF = as.numeric(dt2$maf),
                   pvalues = as.numeric(dt2$p_value),

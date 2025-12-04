@@ -303,7 +303,9 @@ workflow {
     // Step III: Colocalization 
     
     // Run coloc analyses
-    N_jurgens = Channel.of(955733, 516).toList()
+   
+    // This is a case-control GWAS so make sure to specify rates: 9,365 cases and 946,368 controls
+    N_jurgens = Channel.of(0.00989572767, 516).toList() 
     pre_jurgens = Channel.of("jurgens24")
 
     // Run A
