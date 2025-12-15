@@ -460,6 +460,12 @@ exon_df.to_csv('gencode.v34.GRCh38.genes.exons.txt.gz', sep='\t', index=False)
 ```
 
 ---
+## QTL Summary Statistics Download
+- You can download the per-chromosome summary statistics used in the paper from Zenodo: https://doi.org/10.5281/zenodo.17932666
+- The files are compressed as `tar.gz` and contain the standard format of QTL summary statistics. 
+---
+
+---
 
 ## Contributing
 
