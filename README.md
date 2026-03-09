@@ -1,4 +1,4 @@
-# 🧬 Pipeline of DNA- and RNA-seq for eQTL/sQTL Mapping and Loci Prioritization
+# 🧬 Nextflow Pipeline for DNA- and RNA-seq of eQTL/sQTL Mapping and Loci Prioritization
 
 ![Nextflow](https://img.shields.io/badge/Nextflow-DSL2-brightgreen?style=for-the-badge)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
@@ -483,4 +483,6 @@ This project is licensed under the **MIT License**.
 
 ## Citation
 
-TBD — you may cite this repository as needed.
+- We have a pre-print live on MedRxiV:
+
+Murray, C. S., Yang, C., Chen, S. N., Graw, S., Karimpour-Fard, A., Cleveland, J., ... & Taylor, M. R. (2026). Integration of dilated cardiomyopathy genomics with transcriptomics from the human heart implicates regulatory molecular mechanisms. *medRxiv*, 2026-01. https://doi.org/10.64898/2026.01.12.26343934 
